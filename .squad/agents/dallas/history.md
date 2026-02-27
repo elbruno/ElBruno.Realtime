@@ -143,3 +143,17 @@
 - No database — scores live only for the server session lifetime
 
 **Build:** ✅ 0 errors, 0 warnings. No Program.cs changes needed (hub already mapped at `/hubs/game`).
+
+### 2026-02-27: Fixed Scenario 01 Naming & Added Model Location Display
+
+**Task:** Fix naming inconsistency in scenario-01-console (said "Scenario 06" everywhere) and add model download progress/location display.
+
+**Changes:**
+- **scenario-01-console.csproj** — `RootNamespace` changed from `Scenario06RealtimeConsole` to `Scenario01Console`
+- **QwenTextToSpeechClientAdapter.cs** — namespace updated to `Scenario01Console`
+- **Program.cs** — All "Scenario 06" → "Scenario 01"; using statement updated; added model location check section before pipeline init that shows Whisper model path, existence status, and file size using the same path logic as `WhisperModelManager` (`%LOCALAPPDATA%\ElBruno\PersonaPlex\whisper-models\ggml-{id}.bin`)
+- **README.md** — Title, cd path, pipeline diagram, and code examples updated to remove QwenTTS-specific naming and use generic "TTS" references; output example updated to show new model location display
+
+**Key Pattern:** Whisper model path is `Path.Combine(Environment.SpecialFolder.LocalApplicationData, "ElBruno", "PersonaPlex", "whisper-models", $"ggml-{modelId.Replace("whisper-", "")}.bin")` — matches `WhisperModelManager.DefaultCacheDir` logic exactly.
+
+**Build:** ✅ 0 errors, 0 warnings (net10.0).

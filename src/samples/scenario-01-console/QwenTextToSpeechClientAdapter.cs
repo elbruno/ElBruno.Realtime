@@ -1,7 +1,7 @@
 using ElBruno.QwenTTS.Pipeline;
 using ElBruno.Realtime;
 
-namespace Scenario06RealtimeConsole;
+namespace Scenario01Console;
 
 /// <summary>
 /// Adapts <see cref="ITtsPipeline"/> (registered by <c>AddQwenTts()</c>) to

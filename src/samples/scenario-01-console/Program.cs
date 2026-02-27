@@ -3,14 +3,14 @@ using Microsoft.Extensions.DependencyInjection;
 using ElBruno.Realtime;
 using ElBruno.Realtime.Whisper;
 using ElBruno.QwenTTS.Pipeline;
-using Scenario06RealtimeConsole;
+using Scenario01Console;
 
 // ──────────────────────────────────────────────────────────────────
-// Scenario 06: Real-Time Conversation Console App
+// Scenario 01: Real-Time Conversation Console App
 //
 // Demonstrates one-shot turn-based conversation using the
 // ElBruno.Realtime pipeline:
-//   Audio file → Whisper STT → Ollama LLM → QwenTTS → Audio file
+//   Audio file → Whisper STT → Ollama LLM → TTS → Audio file
 //
 // Prerequisites:
 //   - Ollama running locally with phi4-mini model:
@@ -20,12 +20,33 @@ using Scenario06RealtimeConsole;
 // ──────────────────────────────────────────────────────────────────
 
 Console.WriteLine("╔══════════════════════════════════════════════════╗");
-Console.WriteLine("║  PersonaPlex Realtime Console - Scenario 06     ║");
+Console.WriteLine("║  PersonaPlex Realtime Console - Scenario 01     ║");
 Console.WriteLine("║  Audio → STT → LLM → TTS pipeline              ║");
 Console.WriteLine("╚══════════════════════════════════════════════════╝");
 Console.WriteLine();
 
-// ── 1. Configure services ───────────────────────────────────────
+// ── 1. Check model status ───────────────────────────────────────
+var whisperModelId = "whisper-tiny.en";
+var whisperFileName = $"ggml-{whisperModelId.Replace("whisper-", "")}.bin";
+var whisperModelDir = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+    "ElBruno", "PersonaPlex", "whisper-models");
+var whisperModelPath = Path.Combine(whisperModelDir, whisperFileName);
+
+Console.WriteLine("📂 Model locations:");
+if (File.Exists(whisperModelPath))
+{
+    var fileSize = new FileInfo(whisperModelPath).Length;
+    Console.WriteLine($"   Whisper: ✅ Found at {whisperModelPath} ({fileSize / (1024 * 1024)} MB)");
+}
+else
+{
+    Console.WriteLine($"   Whisper: ⬇️ Will be downloaded on first use to {whisperModelPath} (~75 MB)");
+}
+Console.WriteLine($"   TTS:     Auto-downloaded by QwenTTS on first use");
+Console.WriteLine();
+
+// ── 2. Configure services ───────────────────────────────────────
 var services = new ServiceCollection();
 
 services.AddPersonaPlexRealtime(opts =>
@@ -33,9 +54,9 @@ services.AddPersonaPlexRealtime(opts =>
     opts.DefaultSystemPrompt = "You are a helpful assistant. Keep responses brief (1-2 sentences).";
     opts.DefaultLanguage = "en-US";
 })
-.UseWhisperStt("whisper-tiny.en");  // 75MB model, auto-downloads on first use
+.UseWhisperStt(whisperModelId);  // 75MB model, auto-downloads on first use
 
-// Register QwenTTS pipeline and adapter for ITextToSpeechClient
+// Register TTS pipeline and adapter for ITextToSpeechClient
 services.AddQwenTts();
 services.AddSingleton<ITextToSpeechClient, QwenTextToSpeechClientAdapter>();
 
@@ -45,16 +66,16 @@ services.AddChatClient(new OllamaChatClient(
 
 var provider = services.BuildServiceProvider();
 
-// ── 2. Get the conversation client ──────────────────────────────
+// ── 3. Get the conversation client ──────────────────────────────
 var conversation = provider.GetRequiredService<IRealtimeConversationClient>();
 
 Console.WriteLine("✅ Pipeline initialized");
-Console.WriteLine("   STT:  Whisper tiny.en (auto-download on first use)");
+Console.WriteLine("   STT:  Whisper tiny.en");
 Console.WriteLine("   LLM:  Ollama phi4-mini (localhost:11434)");
-Console.WriteLine("   TTS:  QwenTTS (auto-download on first use)");
+Console.WriteLine("   TTS:  QwenTTS");
 Console.WriteLine();
 
-// ── 3. Process a conversation turn ──────────────────────────────
+// ── 4. Process a conversation turn ──────────────────────────────
 // Check for input file
 var inputFile = args.Length > 0 ? args[0] : null;
 

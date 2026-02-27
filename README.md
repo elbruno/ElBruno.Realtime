@@ -116,6 +116,7 @@ await foreach (var evt in conversation.ConverseAsync(microphoneStream))
 | [scenario-01-console](src/samples/scenario-01-console/) | Realtime console app |
 | [scenario-02-api](src/samples/scenario-02-api/) | ASP.NET Core API with SignalR |
 | [scenario-03-blazor-aspire](src/samples/scenario-03-blazor-aspire/) | Blazor + .NET Aspire with voice chat + voice-controlled side-scroller game |
+| [scenario-04-realtime-console](src/samples/scenario-04-realtime-console/) | Real-time microphone conversation with Whisper STT + Ollama LLM |
 
 ### Run a Sample
 

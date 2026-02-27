@@ -1,4 +1,4 @@
-# Scenario 06 — Real-Time Console Conversation
+# Scenario 01 — Real-Time Console Conversation
 
 Minimal console app demonstrating the `ElBruno.PersonaPlex.Realtime` pipeline: **Audio → STT → LLM → TTS**.
 
@@ -16,7 +16,7 @@ Minimal console app demonstrating the `ElBruno.PersonaPlex.Realtime` pipeline: *
 
 ```bash
 # From the repository root
-cd src/samples/scenario-06-realtime-console
+cd src/samples/scenario-01-console
 
 # Run with an audio file
 dotnet run -- path/to/question.wav
@@ -25,16 +25,25 @@ dotnet run -- path/to/question.wav
 ## What It Does
 
 ```
-Audio File → [Whisper STT] → Text → [Ollama LLM] → Response → [QwenTTS] → Audio Response
+Audio File → [Whisper STT] → Text → [Ollama LLM] → Response → [TTS] → Audio Response
 ```
 
 1. **Whisper** transcribes the input WAV to text (auto-downloads `whisper-tiny.en` on first run)
 2. **Ollama** generates a response using `phi4-mini`
-3. **QwenTTS** synthesizes the response as speech (auto-downloads models on first run)
+3. **TTS** synthesizes the response as speech (auto-downloads models on first run)
 
 ## Output
 
 ```
+📂 Model locations:
+   Whisper: ✅ Found at C:\Users\...\whisper-models\ggml-tiny.en.bin (75 MB)
+   TTS:     Auto-downloaded by QwenTTS on first use
+
+✅ Pipeline initialized
+   STT:  Whisper tiny.en
+   LLM:  Ollama phi4-mini (localhost:11434)
+   TTS:  QwenTTS
+
 📁 Input: question.wav
 🔄 Processing...
 
@@ -47,12 +56,14 @@ Audio File → [Whisper STT] → Text → [Ollama LLM] → Response → [QwenTTS
 ## Code Highlights
 
 ```csharp
-// 3 lines to set up the pipeline
+// Configure the pipeline
 services.AddPersonaPlexRealtime(opts => { ... })
-    .UseWhisperStt("whisper-tiny.en")
-    .UseQwenTts();
+    .UseWhisperStt("whisper-tiny.en");
 
-// 1 line to process a turn
+services.AddQwenTts();
+services.AddSingleton<ITextToSpeechClient, QwenTextToSpeechClientAdapter>();
+
+// Process a turn
 var turn = await conversation.ProcessTurnAsync(audioStream);
 ```
 

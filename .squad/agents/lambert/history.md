@@ -191,3 +191,26 @@ Implemented all 7 features from Ripley's game improvement proposal in a single p
 - `applyVoiceCommand()` now accepts `confidence` parameter
 - Build: ✅ 0 errors, 0 warnings
 
+### 2026-02-28: Scenario 04 — Real-Time Microphone Console Conversation
+
+Created new sample `src/samples/scenario-04-realtime-console/` that captures audio from the local default microphone and has a continuous conversation loop with an LLM.
+
+**Pipeline:** Microphone → Silence Detection → Whisper STT → Ollama LLM → Console Text → Loop
+
+**Files Created:**
+- `scenario-04-realtime-console.csproj` — net10.0, NAudio 2.2.1, M.E.AI + Ollama, project refs to core + Whisper
+- `Program.cs` — Full conversation loop with mic capture, silence detection, WAV header writing, Ctrl+C handling
+- `README.md` — Prerequisites, quick start, architecture description
+
+**Key Implementation Details:**
+- Uses `WaveInEvent` (not `WaveIn`) for background thread compatibility
+- Audio format: 16kHz, 16-bit, mono PCM — matches Whisper pipeline expectations
+- Silence detection via RMS amplitude: speech threshold 1000, silence threshold 500, 1.5s silence duration to trigger processing
+- Maximum recording safety limit: 30 seconds
+- Raw PCM wrapped with proper RIFF/WAV header before sending to pipeline
+- No TTS — text-only responses printed to console
+- Lists available microphones, uses device 0 (default)
+- Error handling for Ollama connection errors and audio device issues
+
+**Build:** ✅ 0 errors, 0 warnings
+
