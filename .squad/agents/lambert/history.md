@@ -1,0 +1,60 @@
+# Lambert — History
+
+## Project Context
+- **Project:** ElBruno.Realtime — Pluggable real-time audio conversation framework for .NET
+- **Stack:** C#, .NET 8/10, Blazor, ASP.NET Core, SignalR, .NET Aspire
+- **User:** Bruno Capuano
+- **Description:** Local voice conversations — VAD → STT → LLM → TTS pipeline. No cloud dependencies.
+
+## Learnings
+
+<!-- Append learnings below. Format: ### YYYY-MM-DD: Topic\nWhat was learned. -->
+
+### 2025-07-18: Full Sample & Frontend Codebase Analysis
+
+**All three samples compile successfully (0 errors, 0 warnings).**
+
+#### Scenario 01 — Console (`src/samples/scenario-01-console/`)
+- **What it does:** One-shot Audio file → Whisper STT → Ollama LLM → QwenTTS → Audio file
+- **Status:** Complete and functional. Uses the `IRealtimeConversationClient.ProcessTurnAsync()` API.
+- **Key files:** `Program.cs`, `scenario-01-console.csproj`
+- **Prereqs:** Ollama running locally with phi4-mini, a 16kHz mono WAV input file
+- **Naming inconsistency:** Folder is `scenario-01-console` but csproj says `Scenario06`, README says "Scenario 06", and paths in README reference `scenario-06-realtime-console`
+
+#### Scenario 02 — API + SignalR (`src/samples/scenario-02-api/`)
+- **What it does:** ASP.NET Core API with REST endpoint (`POST /api/conversation/turn`) and SignalR hub (`/hubs/conversation`) for streaming conversations
+- **Status:** Complete backend. No frontend/client included — you'd need to build or curl against it.
+- **Key files:** `Program.cs`, `ConversationHub.cs`, `scenario-02-api.csproj`
+- **Hub methods:** `ProcessTurn(base64)` for one-shot, `StreamConversation(IAsyncEnumerable<byte[]>)` for streaming
+- **Naming inconsistency:** Folder is `scenario-02-api` but csproj says `Scenario07`, README says "Scenario 07", paths reference `scenario-07-realtime-api`
+
+#### Scenario 03 — Blazor + Aspire (`src/samples/scenario-03-blazor-aspire/`)
+- **What it does:** Full-stack app: Aspire orchestrator + API backend (SignalR + Ollama) + Blazor Server frontend with chat UI, push-to-talk, and Speak Mode
+- **Status:** Most complete sample. Builds clean. Has its own `.slnx` (not in main solution). Needs Ollama + .NET Aspire workload.
+- **Key files:**
+  - `scenario-04.AppHost/Program.cs` — Aspire orchestrator
+  - `scenario-04.Api/Program.cs` — Backend with SignalR, M.E.AI, Whisper
+  - `scenario-04.Api/Hubs/ConversationHub.cs` — Hub with text chat, audio processing, agent query
+  - `scenario-04.Api/Services/ConversationService.cs` — Multi-turn streaming chat with history
+  - `scenario-04.Web/Components/Pages/Conversation.razor` — Full chat UI component
+  - `scenario-04.Web/wwwroot/js/audio-recorder.js` — Browser voice (Web Speech API)
+  - `scenario-04.Web/wwwroot/css/app.css` — Dark-themed conversation UI
+  - `scenario-04.Shared/Models/` — DTOs (AudioChunkDto, ChatMessageDto, ConversationStateDto)
+- **Naming inconsistency:** Folder is `scenario-03-blazor-aspire` but all inner projects are `scenario-04.*`
+
+#### Frontend Patterns Found
+- **Browser STT:** Uses Web Speech API (`SpeechRecognition`), NOT WebRTC/MediaStream for audio capture. Client-side STT only.
+- **Browser TTS:** Uses `SpeechSynthesis` API for auto-speak responses
+- **SignalR:** MessagePack protocol, auto-reconnect, streaming via `StreamAsync<string>`
+- **Voice modes:** Push-to-talk (single utterance) and Speak Mode (always-on, hands-free)
+- **JS interop:** `window.voiceChat` object in `audio-recorder.js` with `start`, `startSpeakMode`, `speak`, etc.
+- **No raw audio streaming to server yet:** Audio is transcribed client-side via Web Speech API, text sent over SignalR. Server-side `ProcessAudio()` hub method exists but is secondary path.
+
+#### Core Library (src/ElBruno.Realtime/)
+- `IRealtimeConversationClient` — Main interface with `ConverseAsync()` (streaming) and `ProcessTurnAsync()` (one-shot)
+- `RealtimeConversationPipeline` — Default impl chaining VAD → STT → LLM → TTS
+- `RealtimeServiceCollectionExtensions` — `AddPersonaPlexRealtime()` fluent builder
+- Multi-target: net8.0 + net10.0
+
+#### AudioChunkDto Note
+- `AudioChunkDto` defaults to 24kHz sample rate, but project docs say 16kHz 16-bit mono PCM. Mismatch to track.

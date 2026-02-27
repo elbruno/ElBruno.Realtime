@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "universes_allowed": "all",
+  "max_capacity_per_universe": 7,
+  "overflow_strategy": ["diegetic_expansion", "thematic_promotion", "structural_mirroring"],
+  "exempt_names": ["Scribe", "Ralph", "@copilot"]
+}
