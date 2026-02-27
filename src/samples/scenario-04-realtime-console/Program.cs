@@ -4,6 +4,7 @@ using ElBruno.Realtime;
 using ElBruno.Realtime.Whisper;
 using ElBruno.QwenTTS.Realtime;
 using ElBruno.VibeVoiceTTS.Realtime;
+using ElBruno.KokoroTTS.Realtime;
 using Scenario04RealtimeConsole;
 using static Scenario04RealtimeConsole.ConsoleHelper;
 
@@ -67,6 +68,9 @@ else
 Console.WriteLine("   LLM:     Ollama phi4-mini (ensure 'ollama serve' is running)");
 switch (ttsEngine)
 {
+    case TtsEngine.Kokoro:
+        Console.WriteLine("   TTS:     Kokoro-82M (auto-downloaded on first use, ~320MB)");
+        break;
     case TtsEngine.QwenTts:
         Console.WriteLine("   TTS:     QwenTTS (auto-downloaded on first use)");
         break;
@@ -97,6 +101,14 @@ var realtimeBuilder = services.AddPersonaPlexRealtime(opts =>
 var ttsLabel = "None";
 switch (ttsEngine)
 {
+    case TtsEngine.Kokoro:
+        realtimeBuilder.UseKokoroTts(onDownloadProgress: progress =>
+        {
+            Console.Write($"\r   ⬇️  Downloading Kokoro model: {progress:P0}   ");
+            if (progress >= 1f) Console.WriteLine();
+        });
+        ttsLabel = "Kokoro-82M";
+        break;
     case TtsEngine.QwenTts:
         realtimeBuilder.UseQwenTts();
         ttsLabel = "QwenTTS";

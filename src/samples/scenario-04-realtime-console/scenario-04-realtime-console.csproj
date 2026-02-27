@@ -13,6 +13,7 @@
     <ProjectReference Include="..\..\ElBruno.Realtime.Whisper\ElBruno.Realtime.Whisper.csproj" />
     <ProjectReference Include="..\..\ElBruno.QwenTTS.Realtime\ElBruno.QwenTTS.Realtime.csproj" />
     <ProjectReference Include="..\..\ElBruno.VibeVoiceTTS.Realtime\ElBruno.VibeVoiceTTS.Realtime.csproj" />
+    <ProjectReference Include="..\..\ElBruno.KokoroTTS.Realtime\ElBruno.KokoroTTS.Realtime.csproj" />
   </ItemGroup>
 
   <ItemGroup>
