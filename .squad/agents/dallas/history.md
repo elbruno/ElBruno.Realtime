@@ -63,3 +63,16 @@
 - **EDIT** `DependencyInjection/RealtimeServiceCollectionExtensions.cs` — `TryAddSingleton<IConversationSessionStore, InMemoryConversationSessionStore>()` and inject into pipeline factory
 
 **Backward compatibility:** Fully maintained. `TryAddSingleton` means consumers who don't register their own store get the in-memory default. Null `SessionId` falls back to `"__default__"` key. Build: 0 errors, 0 warnings. Tests: 66/66 pass (net8.0 + net10.0).
+
+### 2026-02-27: Game Backend Voice Feedback
+
+**Work:** Added `GameHub`, `GameFeedbackService`, and shared game DTOs in scenario-04 for voice feedback. Quick phrase pools now serve instant responses while milestone scores trigger `IChatClient`-generated encouragement. Hub mapped at `/hubs/game` alongside the existing conversation hub.
+
+**Features:**
+- Thread-safe random phrase selection via `RandomNumberGenerator.GetInt32`
+- Two-tier feedback: instant (damage/success) + LLM milestone (500-point increments)
+- `GameHub` methods: `SendScore`, `GetQuickFeedback`, `GetDynamicFeedback`, broadcast events
+- `GameFeedbackService`: Non-blocking, cost-optimized (LLM calls only on milestones)
+- Shared `GameStateDto`, `GameEventDto`, `GameInputDto` for client-server type safety
+
+**Outcome:** ✅ Build clean (0 errors, 0 warnings, net8.0 + net10.0). Full integration with Lambert's Canvas game engine.

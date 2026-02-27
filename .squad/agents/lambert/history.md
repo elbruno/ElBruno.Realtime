@@ -58,3 +58,11 @@
 
 #### AudioChunkDto Note
 - `AudioChunkDto` defaults to 24kHz sample rate, but project docs say 16kHz 16-bit mono PCM. Mismatch to track.
+
+### 2026-02-27: Canvas Game Engine MVP
+
+Implemented the Phase 1 side-scroller as a client-side HTML5 Canvas engine with keyboard input, Web Speech API commands, and Blazor HUD callbacks in scenario-04.Web.
+
+**Work:** Built `game-engine.js` (~250 lines), `Game.razor` page component, updated `NavMenu.razor` with `/game` link. All features delivered: physics, collisions, procedural world generation, 60 FPS target. Integrated with `GameHub` SignalR hub for milestone feedback.
+
+**Outcome:** ✅ Build clean (0 errors, 0 warnings). Ready for Phase 2 (server-side collision refinement).

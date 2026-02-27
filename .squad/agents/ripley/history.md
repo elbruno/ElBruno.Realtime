@@ -10,6 +10,14 @@
 
 <!-- Append learnings below. Format: ### YYYY-MM-DD: Topic\nWhat was learned. -->
 
+### 2026-02-27: Game Architecture — Phase 1 Complete
+
+**Designed:** Voice-controlled side-scroller game architecture (Canvas rendering, two-tier feedback, minimal SignalR integration).
+
+**Build outcome:** ✅ Lambert completed `game-engine.js` + `Game.razor` + `NavMenu` integration. Dallas completed `GameHub` + `GameFeedbackService` + shared DTOs. Both builds clean (0 errors). Architecture decisions ratified in `.squad/decisions.md` (Phase 1 milestone).
+
+**Status:** Phase 1 ✅ COMPLETE. Ready for Phase 2 (leaderboard persistence, multi-player).
+
 ### 2026-02-27: Per-Session Conversation History Design
 
 **Problem:** `RealtimeConversationPipeline._conversationHistory` is a singleton-scoped `List<ChatMessage>` — corrupts in multi-user scenarios (SignalR, concurrent API).
@@ -56,3 +64,22 @@
 5. Scenario-03 (Blazor+Aspire) is not in the main .slnx and is text-only; audio pipeline integration is future work.
 6. No CI/CD workflow visible in the solution (though badge references `publish.yml`).
 7. `_inferenceLock` in SileroVadDetector is created but never used — dead code.
+
+### 2026-02-27: Game Architecture Plan — Voice-Controlled Side-Scroller
+
+**Problem:** Bruno requested a Super Mario-style side-scrolling game for scenario-03-blazor-aspire with voice commands ("jump", "shoot") and spoken feedback ("good job" etc).
+
+**Analysis:** Evaluated 3 rendering approaches:
+- **Option A (ASCII):** Pure Blazor, ~15 FPS, retro charm, zero JS. Limited by SignalR round-trip for both rendering and input.
+- **Option B (Canvas):** HTML5 Canvas via JS interop, 60 FPS, smooth scrolling, zero-latency keyboard. ~250 lines JS needed. ⭐ RECOMMENDED.
+- **Option C (CSS Grid):** DOM elements with CSS transitions, ~30 FPS, mostly Blazor. DOM thrashing at scale, input latency concern.
+
+**Decision:** Canvas (Option B) as primary approach. Game engine runs in JS (`game-engine.js`) for rendering + input; C# handles voice feedback orchestration via SignalR `GameHub`. Two-tier TTS: browser SpeechSynthesis for instant phrases, LLM-generated feedback for milestones.
+
+**Key architectural insight:** The ElBruno.Realtime pipeline (`IRealtimeConversationClient.ConverseAsync()`) is NOT suitable for game voice commands — it's designed for conversational turns with VAD→STT→LLM→TTS latency (~1-2s). Game commands need ~200ms latency, which browser Web Speech API provides. Pipeline is useful for the Tier 2 dynamic feedback (LLM-generated encouragement via `IChatClient`).
+
+**Voice integration pattern:** Client-side keyword spotting via Web Speech API `SpeechRecognition` (continuous mode). Small command vocabulary matched in JS. Echo prevention by pausing recognition during TTS (reuses pattern from Conversation page's Speak Mode).
+
+**Aspire integration:** No new projects needed. Game adds a `/game` Blazor page + `GameHub` SignalR hub to existing projects. Aspire AppHost unchanged.
+
+**Plan written to:** session-state/plan.md — 4 implementation phases, 13 files to create/modify, assigned to Lambert (frontend) and Dallas (backend).
