@@ -16,12 +16,13 @@ namespace ElBruno.Realtime.Pipeline;
 /// </remarks>
 public class RealtimeConversationPipeline : IRealtimeConversationClient
 {
+    private const string DefaultSessionId = "__default__";
     private readonly IVoiceActivityDetector? _vad;
     private readonly ISpeechToTextClient _stt;
     private readonly IChatClient _chatClient;
     private readonly ITextToSpeechClient? _tts;
     private readonly RealtimeOptions _options;
-    private readonly List<ChatMessage> _conversationHistory = [];
+    private readonly IConversationSessionStore _sessionStore;
     private bool _disposed;
 
     /// <summary>
@@ -31,12 +32,14 @@ public class RealtimeConversationPipeline : IRealtimeConversationClient
         ISpeechToTextClient stt,
         IChatClient chatClient,
         RealtimeOptions options,
+        IConversationSessionStore sessionStore,
         IVoiceActivityDetector? vad = null,
         ITextToSpeechClient? tts = null)
     {
         _stt = stt ?? throw new ArgumentNullException(nameof(stt));
         _chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
         _options = options ?? throw new ArgumentNullException(nameof(options));
+        _sessionStore = sessionStore ?? throw new ArgumentNullException(nameof(sessionStore));
         _vad = vad;
         _tts = tts;
     }
@@ -53,10 +56,13 @@ public class RealtimeConversationPipeline : IRealtimeConversationClient
         var enableAudio = options?.EnableAudioResponse ?? true;
         var maxHistory = options?.MaxConversationHistory ?? 20;
 
+        // Resolve per-session conversation history
+        var conversationHistory = await GetSessionHistoryAsync(options, cancellationToken);
+
         // Initialize conversation history with system prompt
-        if (systemPrompt is not null && _conversationHistory.Count == 0)
+        if (systemPrompt is not null && conversationHistory.Count == 0)
         {
-            _conversationHistory.Add(new ChatMessage(ChatRole.System, systemPrompt));
+            conversationHistory.Add(new ChatMessage(ChatRole.System, systemPrompt));
         }
 
         if (_vad is null)
@@ -67,7 +73,7 @@ public class RealtimeConversationPipeline : IRealtimeConversationClient
                 allAudio.AddRange(chunk);
 
             await foreach (var evt in ProcessSpeechSegmentAsync(
-                allAudio.ToArray(), options, cancellationToken))
+                allAudio.ToArray(), conversationHistory, options, cancellationToken))
             {
                 yield return evt;
             }
@@ -84,13 +90,13 @@ public class RealtimeConversationPipeline : IRealtimeConversationClient
             };
 
             await foreach (var evt in ProcessSpeechSegmentAsync(
-                segment.AudioData, options, cancellationToken))
+                segment.AudioData, conversationHistory, options, cancellationToken))
             {
                 yield return evt;
             }
 
             // Trim history
-            TrimHistory(maxHistory);
+            TrimHistory(conversationHistory, maxHistory);
         }
     }
 
@@ -105,9 +111,11 @@ public class RealtimeConversationPipeline : IRealtimeConversationClient
         var startTime = DateTimeOffset.UtcNow;
         var systemPrompt = options?.SystemPrompt ?? _options.DefaultSystemPrompt;
 
-        if (systemPrompt is not null && _conversationHistory.Count == 0)
+        var conversationHistory = await GetSessionHistoryAsync(options, cancellationToken);
+
+        if (systemPrompt is not null && conversationHistory.Count == 0)
         {
-            _conversationHistory.Add(new ChatMessage(ChatRole.System, systemPrompt));
+            conversationHistory.Add(new ChatMessage(ChatRole.System, systemPrompt));
         }
 
         // Step 1: STT
@@ -115,13 +123,13 @@ public class RealtimeConversationPipeline : IRealtimeConversationClient
         var userText = sttResponse.Text;
 
         // Step 2: LLM
-        _conversationHistory.Add(new ChatMessage(ChatRole.User, userText));
+        conversationHistory.Add(new ChatMessage(ChatRole.User, userText));
 
         var chatResponse = await _chatClient.GetResponseAsync(
-            _conversationHistory, cancellationToken: cancellationToken);
+            conversationHistory, cancellationToken: cancellationToken);
         var responseText = chatResponse.Text;
 
-        _conversationHistory.Add(new ChatMessage(ChatRole.Assistant, responseText));
+        conversationHistory.Add(new ChatMessage(ChatRole.Assistant, responseText));
 
         // Step 3: TTS (optional)
         Stream? responseAudio = null;
@@ -162,8 +170,16 @@ public class RealtimeConversationPipeline : IRealtimeConversationClient
         return null;
     }
 
+    private async Task<IList<ChatMessage>> GetSessionHistoryAsync(
+        ConversationOptions? options, CancellationToken cancellationToken)
+    {
+        var sessionId = options?.SessionId ?? DefaultSessionId;
+        return await _sessionStore.GetOrCreateSessionAsync(sessionId, cancellationToken);
+    }
+
     private async IAsyncEnumerable<ConversationEvent> ProcessSpeechSegmentAsync(
         byte[] audioData,
+        IList<ChatMessage> conversationHistory,
         ConversationOptions? options,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -182,7 +198,7 @@ public class RealtimeConversationPipeline : IRealtimeConversationClient
             yield break;
 
         // LLM
-        _conversationHistory.Add(new ChatMessage(ChatRole.User, userText));
+        conversationHistory.Add(new ChatMessage(ChatRole.User, userText));
 
         yield return new ConversationEvent
         {
@@ -192,7 +208,7 @@ public class RealtimeConversationPipeline : IRealtimeConversationClient
         var responseBuilder = new System.Text.StringBuilder();
 
         await foreach (var update in _chatClient.GetStreamingResponseAsync(
-            _conversationHistory, cancellationToken: cancellationToken))
+            conversationHistory, cancellationToken: cancellationToken))
         {
             foreach (var content in update.Contents)
             {
@@ -209,7 +225,7 @@ public class RealtimeConversationPipeline : IRealtimeConversationClient
         }
 
         var responseText = responseBuilder.ToString();
-        _conversationHistory.Add(new ChatMessage(ChatRole.Assistant, responseText));
+        conversationHistory.Add(new ChatMessage(ChatRole.Assistant, responseText));
 
         // TTS
         if (_tts is not null && (options?.EnableAudioResponse ?? true) && !string.IsNullOrWhiteSpace(responseText))
@@ -241,21 +257,22 @@ public class RealtimeConversationPipeline : IRealtimeConversationClient
         };
     }
 
-    private void TrimHistory(int maxTurns)
+    private static void TrimHistory(IList<ChatMessage> history, int maxTurns)
     {
         // Keep system prompt + last N messages
-        if (_conversationHistory.Count <= maxTurns + 1) return;
+        if (history.Count <= maxTurns + 1) return;
 
-        var systemMessage = _conversationHistory.FirstOrDefault(m => m.Role == ChatRole.System);
-        var recent = _conversationHistory
+        var systemMessage = history.FirstOrDefault(m => m.Role == ChatRole.System);
+        var recent = history
             .Where(m => m.Role != ChatRole.System)
             .TakeLast(maxTurns)
             .ToList();
 
-        _conversationHistory.Clear();
+        history.Clear();
         if (systemMessage is not null)
-            _conversationHistory.Add(systemMessage);
-        _conversationHistory.AddRange(recent);
+            history.Add(systemMessage);
+        foreach (var msg in recent)
+            history.Add(msg);
     }
 
     /// <inheritdoc />

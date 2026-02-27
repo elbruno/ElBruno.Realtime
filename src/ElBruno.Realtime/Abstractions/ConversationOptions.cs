@@ -21,6 +21,12 @@ public class ConversationOptions
     /// <summary>Gets or sets whether to generate spoken audio responses. Default: true.</summary>
     public bool EnableAudioResponse { get; set; } = true;
 
+    /// <summary>
+    /// Gets or sets the session identifier for per-user conversation history.
+    /// When null, a default shared session is used (backward-compatible single-user mode).
+    /// </summary>
+    public string? SessionId { get; set; }
+
     /// <summary>Gets or sets any additional properties.</summary>
     public IDictionary<string, object?>? AdditionalProperties { get; set; }
 }

@@ -79,6 +79,7 @@ public class AbstractionTests
         Assert.Equal(20, options.MaxConversationHistory);
         Assert.True(options.EnableAudioResponse);
         Assert.Null(options.SystemPrompt);
+        Assert.Null(options.SessionId);
     }
 
     [Fact]

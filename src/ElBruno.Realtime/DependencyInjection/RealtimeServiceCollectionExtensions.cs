@@ -1,5 +1,6 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using ElBruno.Realtime.Pipeline;
 
 namespace ElBruno.Realtime;
@@ -24,16 +25,20 @@ public static class RealtimeServiceCollectionExtensions
 
         services.AddSingleton(options);
 
+        // Register default session store (if not already registered by consumer)
+        services.TryAddSingleton<IConversationSessionStore, InMemoryConversationSessionStore>();
+
         // Register the pipeline (resolved after all providers are registered)
         services.AddSingleton<IRealtimeConversationClient>(sp =>
         {
             var stt = sp.GetRequiredService<ISpeechToTextClient>();
             var chatClient = sp.GetRequiredService<IChatClient>();
             var opts = sp.GetRequiredService<RealtimeOptions>();
+            var sessionStore = sp.GetRequiredService<IConversationSessionStore>();
             var vad = sp.GetService<IVoiceActivityDetector>();
             var tts = sp.GetService<ITextToSpeechClient>();
 
-            return new RealtimeConversationPipeline(stt, chatClient, opts, vad, tts);
+            return new RealtimeConversationPipeline(stt, chatClient, opts, sessionStore, vad, tts);
         });
 
         return new RealtimeBuilder(services, options);

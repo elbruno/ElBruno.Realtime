@@ -10,11 +10,12 @@
   <ItemGroup>
     <ProjectReference Include="..\..\ElBruno.Realtime\ElBruno.Realtime.csproj" />
     <ProjectReference Include="..\..\ElBruno.Realtime.Whisper\ElBruno.Realtime.Whisper.csproj" />
-    <ProjectReference Include="..\..\ElBruno.Realtime.QwenTTS\ElBruno.Realtime.QwenTTS.csproj" />
+  
     <ProjectReference Include="..\..\ElBruno.Realtime.SileroVad\ElBruno.Realtime.SileroVad.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="ElBruno.QwenTTS" Version="0.1.8-preview" />
     <PackageReference Include="Microsoft.Extensions.AI" Version="9.5.0" />
     <PackageReference Include="Microsoft.Extensions.AI.Ollama" Version="9.7.0-preview.1.25356.2" />
   </ItemGroup>

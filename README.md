@@ -9,6 +9,15 @@
 
 A pluggable **real-time audio conversation framework** for .NET, following [Microsoft.Extensions.AI](https://learn.microsoft.com/en-us/dotnet/ai/microsoft-extensions-ai) patterns. Build voice-powered apps with local STT, TTS, VAD, and any LLM — all running on your machine, no cloud required.
 
+## Powered By
+
+This project is built on two core Microsoft frameworks for AI and conversation management:
+
+- **[Microsoft.Extensions.AI (MEAI)](https://learn.microsoft.com/en-us/dotnet/ai/microsoft-extensions-ai)** — Provides unified abstractions for chat clients (`IChatClient`) and speech-to-text (`ISpeechToTextClient`), enabling pluggable LLM and STT providers throughout the pipeline.
+- **[Microsoft Agent Framework](https://learn.microsoft.com/en-us/ai/agents/)** — Manages conversation sessions, per-user state, and dialogue continuity, ensuring each user gets a consistent, stateful conversation experience.
+
+Together with industry-standard models (Whisper STT, QwenTTS, Silero VAD, ONNX Runtime), these frameworks provide a production-ready foundation for real-time voice applications.
+
 ## Architecture
 
 ```

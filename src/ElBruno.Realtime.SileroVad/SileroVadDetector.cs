@@ -87,7 +87,16 @@ public class SileroVadDetector : IVoiceActivityDetector
                 var window = pcmAccumulator.GetRange(0, WindowSizeSamples).ToArray();
                 pcmAccumulator.RemoveRange(0, WindowSizeSamples);
 
-                float probability = RunInference(window, state, sr);
+                await _inferenceLock.WaitAsync(cancellationToken);
+                float probability;
+                try
+                {
+                    probability = RunInference(window, state, sr);
+                }
+                finally
+                {
+                    _inferenceLock.Release();
+                }
 
                 if (probability >= speechThreshold)
                 {

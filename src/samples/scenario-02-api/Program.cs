@@ -1,8 +1,8 @@
 using Microsoft.Extensions.AI;
 using ElBruno.Realtime;
 using ElBruno.Realtime.Whisper;
-using ElBruno.Realtime.QwenTTS;
 using ElBruno.Realtime.SileroVad;
+using ElBruno.QwenTTS.Pipeline;
 using Scenario07RealtimeApi;
 
 // ──────────────────────────────────────────────────────────────────
@@ -26,8 +26,11 @@ builder.Services.AddPersonaPlexRealtime(opts =>
     opts.DefaultLanguage = "en-US";
 })
 .UseWhisperStt("whisper-tiny.en")   // Local STT, auto-downloads model
-.UseQwenTts()                       // Local TTS, auto-downloads model
 .UseSileroVad();                    // Local VAD, auto-downloads model
+
+// Register QwenTTS pipeline and adapter for ITextToSpeechClient
+builder.Services.AddQwenTts();
+builder.Services.AddSingleton<ITextToSpeechClient, QwenTextToSpeechClientAdapter>();
 
 // ── Register the LLM (Ollama) ───────────────────────────────────
 builder.Services.AddChatClient(new OllamaChatClient(

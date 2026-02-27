@@ -61,6 +61,45 @@ public class DiRegistrationTests
         Assert.Equal(0.5f, options.VoiceActivityDetection.SpeechThreshold);
         Assert.Equal(300, options.VoiceActivityDetection.MinSilenceDurationMs);
     }
+    [Fact]
+    public void AddPersonaPlexRealtime_RegistersDefaultSessionStore()
+    {
+        var services = new ServiceCollection();
+        services.AddPersonaPlexRealtime();
+
+        var provider = services.BuildServiceProvider();
+        var store = provider.GetRequiredService<IConversationSessionStore>();
+
+        Assert.NotNull(store);
+        Assert.IsType<InMemoryConversationSessionStore>(store);
+    }
+
+    [Fact]
+    public void AddPersonaPlexRealtime_AllowsConsumerToOverrideSessionStore()
+    {
+        var services = new ServiceCollection();
+
+        // Consumer registers their own implementation BEFORE calling AddPersonaPlexRealtime
+        var customStore = new CustomSessionStore();
+        services.AddSingleton<IConversationSessionStore>(customStore);
+
+        services.AddPersonaPlexRealtime();
+
+        var provider = services.BuildServiceProvider();
+        var resolved = provider.GetRequiredService<IConversationSessionStore>();
+
+        Assert.Same(customStore, resolved);
+    }
+}
+
+/// <summary>A custom session store for testing TryAddSingleton override behavior.</summary>
+internal class CustomSessionStore : IConversationSessionStore
+{
+    public Task<IList<Microsoft.Extensions.AI.ChatMessage>> GetOrCreateSessionAsync(string sessionId, CancellationToken cancellationToken = default)
+        => Task.FromResult<IList<Microsoft.Extensions.AI.ChatMessage>>(new List<Microsoft.Extensions.AI.ChatMessage>());
+
+    public Task RemoveSessionAsync(string sessionId, CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
 }
 
 /// <summary>A minimal mock IChatClient for testing.</summary>

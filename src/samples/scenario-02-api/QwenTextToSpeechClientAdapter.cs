@@ -1,58 +1,42 @@
 using ElBruno.QwenTTS.Pipeline;
+using ElBruno.Realtime;
 
-namespace ElBruno.Realtime.QwenTTS;
+namespace Scenario07RealtimeApi;
 
 /// <summary>
-/// An <see cref="ITextToSpeechClient"/> implementation backed by QwenTTS for local text-to-speech.
-/// Automatically downloads Qwen3-TTS ONNX models on first use.
+/// Adapts <see cref="ITtsPipeline"/> (registered by <c>AddQwenTts()</c>) to
+/// the <see cref="ITextToSpeechClient"/> interface used by the Realtime pipeline.
 /// </summary>
-/// <remarks>
-/// QwenTTS produces 24kHz WAV audio. The pipeline is initialized lazily and shared across calls.
-/// </remarks>
-public class QwenTextToSpeechClient : ITextToSpeechClient
+internal sealed class QwenTextToSpeechClientAdapter : ITextToSpeechClient
 {
+    private readonly ITtsPipeline _pipeline;
     private readonly string _defaultVoice;
     private readonly string _defaultLanguage;
-    private readonly string? _modelDir;
-    private TtsPipeline? _pipeline;
-    private bool _disposed;
-    private readonly SemaphoreSlim _initLock = new(1, 1);
 
-    /// <summary>
-    /// Creates a new <see cref="QwenTextToSpeechClient"/>.
-    /// </summary>
-    /// <param name="defaultVoice">Default voice/speaker name (e.g., "ryan", "serena"). Default: "ryan".</param>
-    /// <param name="defaultLanguage">Default language (e.g., "english", "auto"). Default: "auto".</param>
-    /// <param name="modelDir">Optional model directory. Uses QwenTTS default if null.</param>
-    public QwenTextToSpeechClient(
+    public QwenTextToSpeechClientAdapter(
+        ITtsPipeline pipeline,
         string defaultVoice = "ryan",
-        string defaultLanguage = "auto",
-        string? modelDir = null)
+        string defaultLanguage = "auto")
     {
+        _pipeline = pipeline;
         _defaultVoice = defaultVoice;
         _defaultLanguage = defaultLanguage;
-        _modelDir = modelDir;
     }
 
-    /// <inheritdoc />
     public async Task<TextToSpeechResponse> GetSpeechAsync(
         string text,
         TextToSpeechOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(text);
-
-        await EnsureInitializedAsync(cancellationToken);
 
         var voice = options?.VoiceId ?? _defaultVoice;
         var language = options?.Language ?? _defaultLanguage;
 
-        // QwenTTS writes to disk; use temp file then read into memory
         var tempPath = Path.Combine(Path.GetTempPath(), $"qwentts_{Guid.NewGuid():N}.wav");
         try
         {
-            await _pipeline!.SynthesizeAsync(text, voice, tempPath, language);
+            await _pipeline.SynthesizeAsync(text, voice, tempPath, language);
 
             var audioData = await File.ReadAllBytesAsync(tempPath, cancellationToken);
 
@@ -71,13 +55,11 @@ public class QwenTextToSpeechClient : ITextToSpeechClient
         }
     }
 
-    /// <inheritdoc />
     public async IAsyncEnumerable<TextToSpeechResponseUpdate> GetStreamingSpeechAsync(
         string text,
         TextToSpeechOptions? options = null,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        // QwenTTS doesn't support native streaming, so we synthesize fully then yield a single chunk
         yield return new TextToSpeechResponseUpdate
         {
             Kind = TextToSpeechUpdateKind.SessionOpen,
@@ -101,41 +83,15 @@ public class QwenTextToSpeechClient : ITextToSpeechClient
         };
     }
 
-    /// <inheritdoc />
     public object? GetService(Type serviceType, object? serviceKey = null)
     {
-        if (serviceType == typeof(QwenTextToSpeechClient) || serviceType == typeof(ITextToSpeechClient))
+        if (serviceType == typeof(QwenTextToSpeechClientAdapter) || serviceType == typeof(ITextToSpeechClient))
             return this;
-
         return null;
     }
 
-    private async Task EnsureInitializedAsync(CancellationToken cancellationToken)
-    {
-        if (_pipeline is not null) return;
-
-        await _initLock.WaitAsync(cancellationToken);
-        try
-        {
-            if (_pipeline is not null) return;
-            _pipeline = await TtsPipeline.CreateAsync(_modelDir);
-        }
-        finally
-        {
-            _initLock.Release();
-        }
-    }
-
-    /// <inheritdoc />
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
-
-        _pipeline?.Dispose();
-        _pipeline = null;
-        _initLock.Dispose();
-
-        GC.SuppressFinalize(this);
+        // ITtsPipeline lifetime is managed by DI; do not dispose here.
     }
 }

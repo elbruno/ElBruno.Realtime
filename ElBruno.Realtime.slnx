@@ -2,7 +2,6 @@
   <Folder Name="/src/">
     <Project Path="src/ElBruno.Realtime/ElBruno.Realtime.csproj" />
     <Project Path="src/ElBruno.Realtime.Whisper/ElBruno.Realtime.Whisper.csproj" />
-    <Project Path="src/ElBruno.Realtime.QwenTTS/ElBruno.Realtime.QwenTTS.csproj" />
     <Project Path="src/ElBruno.Realtime.SileroVad/ElBruno.Realtime.SileroVad.csproj" />
     <Project Path="src/ElBruno.Realtime.Tests/ElBruno.Realtime.Tests.csproj" />
   </Folder>

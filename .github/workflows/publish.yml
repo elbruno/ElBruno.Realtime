@@ -56,7 +56,6 @@ jobs:
         run: |
           dotnet pack src/ElBruno.Realtime/ElBruno.Realtime.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
           dotnet pack src/ElBruno.Realtime.Whisper/ElBruno.Realtime.Whisper.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
-          dotnet pack src/ElBruno.Realtime.QwenTTS/ElBruno.Realtime.QwenTTS.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
           dotnet pack src/ElBruno.Realtime.SileroVad/ElBruno.Realtime.SileroVad.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
 
       - name: NuGet login (OIDC → temp API key)
