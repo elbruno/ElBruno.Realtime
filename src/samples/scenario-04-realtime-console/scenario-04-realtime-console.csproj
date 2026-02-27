@@ -11,10 +11,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\ElBruno.Realtime\ElBruno.Realtime.csproj" />
     <ProjectReference Include="..\..\ElBruno.Realtime.Whisper\ElBruno.Realtime.Whisper.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="ElBruno.QwenTTS" Version="0.1.8-preview" />
+    <ProjectReference Include="..\..\ElBruno.QwenTTS.Realtime\ElBruno.QwenTTS.Realtime.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -2,8 +2,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using ElBruno.Realtime;
 using ElBruno.Realtime.Whisper;
-using ElBruno.QwenTTS.Pipeline;
-using Scenario01Console;
+using ElBruno.QwenTTS.Realtime;
 
 // ──────────────────────────────────────────────────────────────────
 // Scenario 01: Real-Time Conversation Console App
@@ -54,11 +53,8 @@ services.AddPersonaPlexRealtime(opts =>
     opts.DefaultSystemPrompt = "You are a helpful assistant. Keep responses brief (1-2 sentences).";
     opts.DefaultLanguage = "en-US";
 })
-.UseWhisperStt(whisperModelId);  // 75MB model, auto-downloads on first use
-
-// Register TTS pipeline and adapter for ITextToSpeechClient
-services.AddQwenTts();
-services.AddSingleton<ITextToSpeechClient, QwenTextToSpeechClientAdapter>();
+.UseWhisperStt(whisperModelId)   // 75MB model, auto-downloads on first use
+.UseQwenTts();
 
 // Register Ollama as the LLM (assumes Ollama is running locally)
 services.AddChatClient(new OllamaChatClient(

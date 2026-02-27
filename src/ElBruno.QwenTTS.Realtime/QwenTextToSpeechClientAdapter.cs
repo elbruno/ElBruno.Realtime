@@ -1,18 +1,24 @@
 using ElBruno.QwenTTS.Pipeline;
 using ElBruno.Realtime;
 
-namespace Scenario01Console;
+namespace ElBruno.QwenTTS.Realtime;
 
 /// <summary>
 /// Adapts <see cref="ITtsPipeline"/> (registered by <c>AddQwenTts()</c>) to
 /// the <see cref="ITextToSpeechClient"/> interface used by the Realtime pipeline.
 /// </summary>
-internal sealed class QwenTextToSpeechClientAdapter : ITextToSpeechClient
+public sealed class QwenTextToSpeechClientAdapter : ITextToSpeechClient
 {
     private readonly ITtsPipeline _pipeline;
     private readonly string _defaultVoice;
     private readonly string _defaultLanguage;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="QwenTextToSpeechClientAdapter"/> class.
+    /// </summary>
+    /// <param name="pipeline">The QwenTTS pipeline registered by <c>AddQwenTts()</c>.</param>
+    /// <param name="defaultVoice">Default voice identifier. Defaults to "ryan".</param>
+    /// <param name="defaultLanguage">Default language. Defaults to "auto".</param>
     public QwenTextToSpeechClientAdapter(
         ITtsPipeline pipeline,
         string defaultVoice = "ryan",
@@ -23,6 +29,7 @@ internal sealed class QwenTextToSpeechClientAdapter : ITextToSpeechClient
         _defaultLanguage = defaultLanguage;
     }
 
+    /// <inheritdoc />
     public async Task<TextToSpeechResponse> GetSpeechAsync(
         string text,
         TextToSpeechOptions? options = null,
@@ -55,6 +62,7 @@ internal sealed class QwenTextToSpeechClientAdapter : ITextToSpeechClient
         }
     }
 
+    /// <inheritdoc />
     public async IAsyncEnumerable<TextToSpeechResponseUpdate> GetStreamingSpeechAsync(
         string text,
         TextToSpeechOptions? options = null,
@@ -83,6 +91,7 @@ internal sealed class QwenTextToSpeechClientAdapter : ITextToSpeechClient
         };
     }
 
+    /// <inheritdoc />
     public object? GetService(Type serviceType, object? serviceKey = null)
     {
         if (serviceType == typeof(QwenTextToSpeechClientAdapter) || serviceType == typeof(ITextToSpeechClient))
@@ -90,6 +99,7 @@ internal sealed class QwenTextToSpeechClientAdapter : ITextToSpeechClient
         return null;
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
         // ITtsPipeline lifetime is managed by DI; do not dispose here.
