@@ -2,16 +2,18 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using ElBruno.Realtime;
 using ElBruno.Realtime.Whisper;
+using ElBruno.QwenTTS.Pipeline;
 using NAudio.Wave;
+using Scenario04RealtimeConsole;
 
 // ──────────────────────────────────────────────────────────────────
 // Scenario 04: Real-Time Microphone Conversation
 //
 // Captures audio from the default microphone, transcribes with
-// Whisper, sends to Ollama LLM, and prints the response.
+// Whisper, sends to Ollama LLM, and speaks the response.
 // Continuous conversation loop until Ctrl+C.
 //
-// Pipeline:  Microphone → VAD → Whisper STT → Ollama LLM → Console
+// Pipeline:  Microphone → Whisper STT → Ollama LLM → QwenTTS → Speakers
 //
 // Prerequisites:
 //   - Ollama running locally with phi4-mini:
@@ -30,12 +32,12 @@ var deviceCount = WaveInEvent.DeviceCount;
 if (deviceCount == 0)
 {
     Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine("❌ No microphone found. Please connect a microphone and try again.");
+    Log("❌ No microphone found. Please connect a microphone and try again.");
     Console.ResetColor();
     return;
 }
 
-Console.WriteLine("🎙️  Available microphones:");
+Log("🎙️  Available microphones:");
 for (var i = 0; i < deviceCount; i++)
 {
     var caps = WaveInEvent.GetCapabilities(i);
@@ -56,6 +58,10 @@ services.AddPersonaPlexRealtime(opts =>
 })
 .UseWhisperStt("whisper-tiny.en");  // 75MB model, auto-downloads on first use
 
+// Register TTS pipeline and adapter for ITextToSpeechClient
+services.AddQwenTts();
+services.AddSingleton<ITextToSpeechClient, QwenTextToSpeechClientAdapter>();
+
 // Register Ollama as the LLM (assumes Ollama is running locally)
 services.AddChatClient(new OllamaChatClient(
     new Uri("http://localhost:11434"), "phi4-mini"));
@@ -65,12 +71,12 @@ var provider = services.BuildServiceProvider();
 // ── 3. Get the conversation client ──────────────────────────────
 var conversation = provider.GetRequiredService<IRealtimeConversationClient>();
 
-Console.WriteLine("✅ Pipeline initialized");
+Log("✅ Pipeline initialized");
 Console.WriteLine("   STT:  Whisper tiny.en (auto-download on first use)");
 Console.WriteLine("   LLM:  Ollama phi4-mini (localhost:11434)");
-Console.WriteLine("   TTS:  None (text output only)");
+Console.WriteLine("   TTS:  QwenTTS");
 Console.WriteLine();
-Console.WriteLine("Press Ctrl+C to exit.");
+Log("Press Ctrl+C to exit.");
 Console.WriteLine();
 
 // ── 4. Conversation loop ────────────────────────────────────────
@@ -80,13 +86,13 @@ Console.CancelKeyPress += (_, e) =>
     e.Cancel = true;
     cts.Cancel();
     Console.WriteLine();
-    Console.WriteLine("👋 Exiting...");
+    Log("👋 Exiting...");
 };
 
 var options = new ConversationOptions
 {
     SystemPrompt = "You are a helpful, friendly assistant. Keep responses concise.",
-    EnableAudioResponse = false,
+    EnableAudioResponse = true,
 };
 
 const int sampleRate = 16000;
@@ -98,7 +104,7 @@ try
 {
     while (!cts.Token.IsCancellationRequested)
     {
-        Console.WriteLine("🎤 Listening... (speak, then pause for 1.5s to process)");
+        Log("🎤 Listening... (speak, then pause for 1.5s to process)");
 
         byte[] audioData;
         try
@@ -112,28 +118,35 @@ try
 
         if (audioData.Length < minimumAudioBytes)
         {
-            Console.WriteLine("(no speech detected, listening again...)");
+            Log("(no speech detected, listening again...)");
             Console.WriteLine();
             continue;
         }
-
-        Console.WriteLine("🔄 Processing...");
 
         try
         {
             var wavData = CreateWavData(audioData, sampleRate, bitsPerSample, channels);
             using var audioStream = new MemoryStream(wavData);
+            
+            Log("🔄 Transcribing...");
             var turn = await conversation.ProcessTurnAsync(audioStream, options, cts.Token);
 
-            Console.WriteLine($"📝 You said: {turn.UserText}");
-            Console.WriteLine($"🤖 AI: {turn.ResponseText}");
-            Console.WriteLine($"⏱️  {turn.ProcessingTime.TotalSeconds:F1}s");
+            Log($"📝 You said: {turn.UserText}");
+            Log($"🤖 AI replied: {turn.ResponseText}");
+            
+            if (turn.ResponseAudio is not null)
+            {
+                Log("🔊 Playing audio response...");
+                await PlayAudioAsync(turn.ResponseAudio, cts.Token);
+            }
+            
+            Log($"⏱️  Total: {turn.ProcessingTime.TotalSeconds:F1}s");
             Console.WriteLine();
         }
         catch (HttpRequestException ex) when (ex.Message.Contains("Connection refused"))
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("❌ Cannot connect to Ollama. Make sure it's running:");
+            Log("❌ Cannot connect to Ollama. Make sure it's running:");
             Console.WriteLine("   ollama serve");
             Console.ResetColor();
             Console.WriteLine();
@@ -147,16 +160,25 @@ catch (OperationCanceledException)
 catch (Exception ex)
 {
     Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine($"❌ Error: {ex.Message}");
+    Log($"❌ Error: {ex.Message}");
     Console.ResetColor();
 }
 
 Console.WriteLine();
-Console.WriteLine("Done.");
+Log("Done.");
 
 // ═════════════════════════════════════════════════════════════════
 // Helper methods
 // ═════════════════════════════════════════════════════════════════
+
+/// <summary>
+/// Logs a message with a timestamp prefix in [HH:mm:ss] format.
+/// </summary>
+static void Log(string message)
+{
+    var timestamp = DateTime.Now.ToString("[HH:mm:ss]");
+    Console.WriteLine($"{timestamp} {message}");
+}
 
 /// <summary>
 /// Records audio from the microphone until silence is detected after speech,
@@ -309,4 +331,27 @@ static byte[] CreateWavData(byte[] pcmData, int sampleRate, int bitsPerSample, i
     writer.Write(pcmData);
 
     return stream.ToArray();
+}
+
+/// <summary>
+/// Plays audio through the default output device using NAudio.
+/// Blocks until playback completes.
+/// </summary>
+static async Task PlayAudioAsync(Stream audioStream, CancellationToken cancellationToken)
+{
+    audioStream.Position = 0;
+    var audioBytes = new byte[audioStream.Length];
+    await audioStream.ReadAsync(audioBytes, cancellationToken);
+    
+    using var ms = new MemoryStream(audioBytes);
+    using var reader = new WaveFileReader(ms);
+    using var waveOut = new WaveOutEvent();
+    
+    waveOut.Init(reader);
+    waveOut.Play();
+    
+    while (waveOut.PlaybackState == PlaybackState.Playing && !cancellationToken.IsCancellationRequested)
+    {
+        await Task.Delay(100, cancellationToken);
+    }
 }

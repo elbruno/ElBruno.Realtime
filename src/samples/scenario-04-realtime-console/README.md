@@ -1,6 +1,6 @@
 # Scenario 04 — Real-Time Microphone Conversation
 
-Console app that captures audio from your microphone and has a continuous conversation with an LLM: **Microphone → Whisper STT → Ollama LLM → Text Response → Loop**.
+Console app that captures audio from your microphone and has a continuous conversation with an LLM: **Microphone → Whisper STT → Ollama LLM → QwenTTS → Speakers**.
 
 ## Prerequisites
 
@@ -24,17 +24,20 @@ dotnet run
 ## What It Does
 
 ```
-Microphone → [Whisper STT] → Text → [Ollama LLM] → Console Text Response → Loop
+Microphone → [Whisper STT] → Text → [Ollama LLM] → [QwenTTS] → Speakers → Loop
 ```
 
 1. Lists available microphones and selects the default device
 2. Listens for speech from the microphone
 3. Detects silence (1.5s pause) to know when you've finished speaking
 4. **Whisper** transcribes the captured audio to text (auto-downloads `whisper-tiny.en` on first run)
-5. **Ollama** generates a response using `phi4-mini`
-6. Prints the response to console and loops back to listening
+5. Shows the transcribed text immediately ("You said: ...")
+6. **Ollama** generates a response using `phi4-mini`
+7. **QwenTTS** converts the response to speech (auto-downloads on first use)
+8. Plays the audio response through your speakers
+9. Loops back to listening
 
-No TTS — responses are printed to the console as text.
+All console output includes timestamps in `[HH:mm:ss]` format.
 
 ## Output
 
@@ -43,18 +46,21 @@ No TTS — responses are printed to the console as text.
    [0] Microphone (Realtek Audio)
    Using device [0]
 
-✅ Pipeline initialized
+[14:32:15] ✅ Pipeline initialized
    STT:  Whisper tiny.en (auto-download on first use)
    LLM:  Ollama phi4-mini (localhost:11434)
-   TTS:  None (text output only)
+   TTS:  QwenTTS
 
-🎤 Listening... (speak, then pause for 1.5s to process)
-🔄 Processing...
-📝 You said: What is the capital of France?
-🤖 AI: The capital of France is Paris.
-⏱️  2.3s
+[14:32:15] Press Ctrl+C to exit.
 
-🎤 Listening... (speak, then pause for 1.5s to process)
+[14:32:15] 🎤 Listening... (speak, then pause for 1.5s to process)
+[14:32:18] 🔄 Transcribing...
+[14:32:19] 📝 You said: What is the capital of France?
+[14:32:21] 🤖 AI replied: The capital of France is Paris.
+[14:32:21] 🔊 Playing audio response...
+[14:32:24] ⏱️  Total: 6.2s
+
+[14:32:24] 🎤 Listening... (speak, then pause for 1.5s to process)
 ```
 
 Press **Ctrl+C** to exit the conversation loop.

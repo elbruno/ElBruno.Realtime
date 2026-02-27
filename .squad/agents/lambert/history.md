@@ -214,3 +214,47 @@ Created new sample `src/samples/scenario-04-realtime-console/` that captures aud
 
 **Build:** ✅ 0 errors, 0 warnings
 
+### 2026-02-28: Scenario 04 — Added TTS (QwenTTS) and Timestamps
+
+Updated scenario-04-realtime-console to enhance the voice conversation experience with text-to-speech output and better UX.
+
+**Changes Made:**
+1. **Added TTS (QwenTTS):**
+   - Copied `QwenTextToSpeechClientAdapter.cs` from scenario-01-console (updated namespace to `Scenario04RealtimeConsole`)
+   - Added `ElBruno.QwenTTS` package reference (version `0.1.8-preview`)
+   - Registered TTS in DI: `services.AddQwenTts()` and `services.AddSingleton<ITextToSpeechClient, QwenTextToSpeechClientAdapter>()`
+   - Enabled audio response in ConversationOptions: `EnableAudioResponse = true`
+   - Implemented audio playback using NAudio's `WaveOutEvent` + `WaveFileReader`
+   - Added `PlayAudioAsync()` helper method that blocks until playback completes
+
+2. **Improved STT Display:**
+   - Changed processing message from "🔄 Processing..." to "🔄 Transcribing..." to clarify the immediate action
+   - STT result ("You said:") now displayed immediately after transcription completes
+   - LLM response ("AI replied:") shown separately after generation
+   - Audio playback ("🔊 Playing audio response...") indicated before speaking
+   - This creates a better user experience showing progress at each pipeline stage
+
+3. **Added Timestamps:**
+   - Created `Log(string message)` helper method that prefixes all output with `DateTime.Now.ToString("[HH:mm:ss]")`
+   - Applied timestamps to ALL user-facing console messages (not ASCII art header)
+   - Format: `[14:32:15] 🎤 Listening...` — helps track conversation timing and debug issues
+
+4. **Updated Documentation:**
+   - README.md now reflects TTS is included (pipeline diagram and description)
+   - Updated expected output examples to show timestamps
+   - Updated pipeline status display from "TTS: None" to "TTS: QwenTTS"
+
+**Technical Details:**
+- Audio playback via NAudio: Read response audio bytes → `MemoryStream` → `WaveFileReader` → `WaveOutEvent`
+- Playback blocks with `while (waveOut.PlaybackState == PlaybackState.Playing)` loop with 100ms polling
+- TTS adapter uses temp file pattern: synthesize to temp WAV, read bytes, delete temp file
+- Sample rate: QwenTTS outputs 24kHz audio
+
+**File Paths:**
+- `src/samples/scenario-04-realtime-console/QwenTextToSpeechClientAdapter.cs` (new)
+- `src/samples/scenario-04-realtime-console/Program.cs` (modified)
+- `src/samples/scenario-04-realtime-console/scenario-04-realtime-console.csproj` (modified)
+- `src/samples/scenario-04-realtime-console/README.md` (modified)
+
+**Build:** ✅ 0 errors, 1 warning (CA2022 about Stream.ReadAsync — acceptable)
+
