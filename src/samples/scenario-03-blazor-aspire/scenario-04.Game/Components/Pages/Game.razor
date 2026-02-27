@@ -15,14 +15,14 @@
             <div class="game-subtitle">Voice + keyboard powered run-and-jump challenge</div>
         </div>
         <div class="game-controls">
-            <button class="btn-primary" @onclick="StartGame" disabled="@isRunning">▶️ Start</button>
-            <button class="btn-secondary" @onclick="PauseGame" disabled="@(!isRunning)">⏸️ Pause</button>
-            <button class="btn-secondary" @onclick="RestartGame">🔄 Restart</button>
+            <button class="btn-primary" @onclick="StartGame" disabled="@isRunning" tabindex="-1">▶️ Start</button>
+            <button class="btn-secondary" @onclick="PauseGame" disabled="@(!isRunning)" tabindex="-1">⏸️ Pause</button>
+            <button class="btn-secondary" @onclick="RestartGame" tabindex="-1">🔄 Restart</button>
         </div>
     </header>
 
     <section class="game-panel">
-        <div class="game-area">
+        <div class="game-area" id="game-area" tabindex="0" @onclick="FocusGameArea" @onfocus="OnGameAreaFocus" @onblur="OnGameAreaBlur">
             <canvas id="game-canvas" width="800" height="400"></canvas>
 
             <div class="hud">
@@ -66,7 +66,7 @@
             <div class="voice-panel">
                 <h3>🎤 Voice Control</h3>
                 <p>@voiceStatusMessage</p>
-                <button class="btn-secondary" @onclick="ToggleVoice" disabled="@(!voiceSupported)">
+                <button class="btn-secondary" @onclick="ToggleVoice" disabled="@(!voiceSupported)" tabindex="-1">
                     @(voiceEnabled ? "Stop Voice" : "Start Voice")
                 </button>
                 @if (!string.IsNullOrWhiteSpace(voiceError))
@@ -87,6 +87,17 @@
                     Tip: Voice commands give bonus points and trigger hype TTS feedback!
                 </div>
             </div>
+
+            <details class="debug-panel">
+                <summary>🔧 Debug</summary>
+                <div class="debug-content">
+                    <div class="debug-row"><span>API URL:</span> <span class="debug-val">@debugApiUrl</span></div>
+                    <div class="debug-row"><span>Hub:</span> <span class="debug-val @(IsHubConnected ? "connected" : "disconnected")">@debugHubState</span></div>
+                    <div class="debug-row"><span>Voice:</span> <span class="debug-val">@debugVoiceState</span></div>
+                    <div class="debug-row"><span>Last key:</span> <span class="debug-val">@debugLastKey</span></div>
+                    <div class="debug-row"><span>Canvas focus:</span> <span class="debug-val">@(canvasFocused ? "Focused" : "Not focused")</span></div>
+                </div>
+            </details>
         </aside>
     </section>
 </div>
@@ -108,6 +119,11 @@
     private List<string> voiceCommandLog = new();
     private string voiceStatusMessage = "Voice commands ready.";
     private string voiceError = string.Empty;
+    private bool canvasFocused;
+    private string debugApiUrl = "";
+    private string debugHubState = "Disconnected";
+    private string debugVoiceState = "Not started";
+    private string debugLastKey = "—";
 
     private static readonly string[] JumpPhrases = { "Nice jump!", "Smooth!", "Great hop!", "Clean leap!" };
     private static readonly string[] ShootPhrases = { "Got 'em!", "Bullseye!", "Nice shot!", "Boom!" };
@@ -123,6 +139,7 @@
             ?? Configuration["Services:api:http:0"]
             ?? "https://localhost:5001";
 
+        debugApiUrl = apiUrl;
         Logger.LogInformation("Connecting to API at {ApiUrl}", apiUrl);
 
         hubConnection = new HubConnectionBuilder()
@@ -136,6 +153,7 @@
         hubConnection.Closed += exception =>
         {
             Logger.LogWarning("SignalR connection closed: {Reason}", exception?.Message ?? "No reason");
+            debugHubState = "Disconnected";
             InvokeAsync(StateHasChanged);
             return Task.CompletedTask;
         };
@@ -143,6 +161,7 @@
         hubConnection.Reconnecting += exception =>
         {
             Logger.LogWarning("SignalR reconnecting: {Reason}", exception?.Message ?? "Unknown");
+            debugHubState = "Reconnecting";
             InvokeAsync(StateHasChanged);
             return Task.CompletedTask;
         };
@@ -150,6 +169,7 @@
         hubConnection.Reconnected += connectionId =>
         {
             Logger.LogInformation("SignalR reconnected with connection ID: {ConnectionId}", connectionId);
+            debugHubState = "Connected";
             InvokeAsync(StateHasChanged);
             return Task.CompletedTask;
         };
@@ -157,10 +177,12 @@
         try
         {
             await hubConnection.StartAsync();
+            debugHubState = "Connected";
             Logger.LogInformation("SignalR connected to {Hub}", $"{apiUrl}/hubs/game");
         }
         catch (Exception ex)
         {
+            debugHubState = $"Error: {ex.Message}";
             Logger.LogError(ex, "Failed to connect to API at {ApiUrl}. Game will run without backend feedback.", apiUrl);
         }
     }
@@ -194,6 +216,7 @@
         await gameModule.InvokeVoidAsync("startGame");
         isRunning = true;
         isGameOver = false;
+        await FocusGameArea();
     }
 
     private async Task PauseGame()
@@ -220,6 +243,7 @@
         lives = 3;
         lastVoiceCommand = "—";
         voiceCommandLog.Clear();
+        await FocusGameArea();
     }
 
     private async Task ToggleVoice()
@@ -236,13 +260,16 @@
             voiceEnabled = false;
             voiceListening = false;
             voiceStatusMessage = "Voice commands ready.";
+            debugVoiceState = "Not started";
         }
         else
         {
             await gameModule.InvokeVoidAsync("startVoiceControl", dotNetRef);
             voiceEnabled = true;
             voiceStatusMessage = "Listening for jump and shoot.";
+            debugVoiceState = "Listening";
         }
+        await FocusGameArea();
     }
 
     private async Task SpeakAsync(string text)
@@ -307,6 +334,7 @@
     public void OnVoiceStatusChanged(bool listening)
     {
         voiceListening = listening;
+        debugVoiceState = listening ? "Listening" : (voiceEnabled ? "Paused" : "Not started");
         InvokeAsync(StateHasChanged);
     }
 
@@ -316,6 +344,7 @@
         lastVoiceCommand = command;
         voiceCommandLog.Insert(0, $"{command.ToUpper()} (+50 pts)");
         if (voiceCommandLog.Count > 5) voiceCommandLog.RemoveAt(voiceCommandLog.Count - 1);
+        debugVoiceState = "Listening";
         InvokeAsync(StateHasChanged);
     }
 
@@ -326,7 +355,30 @@
         voiceEnabled = false;
         voiceListening = false;
         voiceStatusMessage = "Voice commands unavailable.";
+        debugVoiceState = $"Error: {message}";
         InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public void OnDebugKeyEvent(string keyCode)
+    {
+        debugLastKey = keyCode;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task FocusGameArea()
+    {
+        await JS.InvokeVoidAsync("eval", "document.getElementById('game-area')?.focus()");
+    }
+
+    private void OnGameAreaFocus()
+    {
+        canvasFocused = true;
+    }
+
+    private void OnGameAreaBlur()
+    {
+        canvasFocused = false;
     }
 
     public async ValueTask DisposeAsync()
@@ -396,6 +448,12 @@
         position: relative;
         width: 100%;
         max-width: 900px;
+        outline: none;
+    }
+
+    .game-area:focus {
+        outline: 2px solid rgba(255, 107, 157, 0.6);
+        border-radius: 22px;
     }
 
     #game-canvas {
@@ -546,6 +604,56 @@
         background: rgba(248, 113, 113, 0.1);
         border-radius: 8px;
         border: 1px solid rgba(248, 113, 113, 0.3);
+        font-size: 0.85rem;
+        word-break: break-word;
+    }
+
+    .debug-panel {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.9) 100%);
+        border-radius: 20px;
+        padding: 1rem 1.5rem;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+        border: 2px solid rgba(100, 100, 120, 0.3);
+        backdrop-filter: blur(10px);
+        font-size: 0.8rem;
+    }
+
+    .debug-panel summary {
+        cursor: pointer;
+        color: #a5b4fc;
+        font-weight: 600;
+        user-select: none;
+    }
+
+    .debug-content {
+        margin-top: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    .debug-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.5rem;
+        color: #94a3b8;
+    }
+
+    .debug-val {
+        color: #e2e8f0;
+        text-align: right;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 170px;
+    }
+
+    .debug-val.connected {
+        color: #22c55e;
+    }
+
+    .debug-val.disconnected {
+        color: #f87171;
     }
 
     .instructions ul {

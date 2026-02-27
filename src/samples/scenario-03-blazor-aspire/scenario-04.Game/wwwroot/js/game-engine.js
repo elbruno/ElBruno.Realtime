@@ -85,6 +85,7 @@ const voice = {
 export function initGame(canvasId, ref) {
     canvas = document.getElementById(canvasId);
     if (!canvas) {
+        console.error('Game engine init failed: canvas not found for id', canvasId);
         return;
     }
     ctx = canvas.getContext('2d');
@@ -98,6 +99,14 @@ export function initGame(canvasId, ref) {
         initGroundMarkers();
         initialized = true;
     }
+
+    // Focus the game area wrapper so keyboard events work immediately
+    const gameArea = canvas.closest('.game-area') || canvas.parentElement;
+    if (gameArea) {
+        gameArea.focus();
+    }
+
+    console.log(`Game engine initialized, canvas: ${canvas.width}x${canvas.height}`);
 }
 
 export function startGame() {
@@ -107,6 +116,8 @@ export function startGame() {
     state.running = true;
     state.lastTime = performance.now();
     rafId = requestAnimationFrame(loop);
+    focusGameArea();
+    console.log('Game started');
 }
 
 export function pauseGame() {
@@ -153,12 +164,15 @@ export function resetGame() {
     notifyScore();
     notifyLives();
     render();
+    focusGameArea();
+    console.log('Game reset');
 }
 
 export function applyVoiceCommand(command) {
     if (!command) {
         return;
     }
+    console.log('Applying voice command:', command);
     const normalized = command.toLowerCase();
     let executed = false;
     if (normalized === 'jump') {
@@ -193,8 +207,10 @@ export function isVoiceSupported() {
 }
 
 export function startVoiceControl(ref) {
+    console.log('Voice control starting...');
     voice.dotNetRef = ref;
     if (!isVoiceSupported()) {
+        console.warn('Speech recognition not supported in this browser');
         if (voice.dotNetRef) {
             voice.dotNetRef.invokeMethodAsync('OnVoiceError', 'Speech recognition is not supported. Use Chrome or Edge.');
         }
@@ -215,6 +231,7 @@ export function speakText(text) {
     if (!text) {
         return;
     }
+    console.log('Speaking:', text);
     showSpeechText(text);
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
@@ -245,6 +262,7 @@ export function speakText(text) {
 }
 
 function startRecognition() {
+    console.log('Starting speech recognition...');
     if (!isVoiceSupported()) {
         return;
     }
@@ -260,6 +278,7 @@ function startRecognition() {
     voice.recognition.maxAlternatives = 1;
 
     voice.recognition.onstart = () => {
+        console.log('Speech recognition started');
         voice.isListening = true;
         if (voice.dotNetRef) {
             voice.dotNetRef.invokeMethodAsync('OnVoiceStatusChanged', true);
@@ -275,6 +294,7 @@ function startRecognition() {
         }
         if (finalTranscript) {
             const command = matchVoiceCommand(finalTranscript);
+            console.log('Voice transcript:', finalTranscript, 'Matched command:', command);
             if (command) {
                 applyVoiceCommand(command);
                 if (voice.dotNetRef) {
@@ -285,6 +305,7 @@ function startRecognition() {
     };
 
     voice.recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error, event);
         let errorMsg = 'Speech recognition error';
         switch (event.error) {
             case 'no-speech':
@@ -300,10 +321,10 @@ function startRecognition() {
             case 'aborted':
                 return;
             case 'network':
-                errorMsg = 'Network error during speech recognition.';
+                errorMsg = 'Network error during speech recognition. This may be because the browser needs HTTPS or internet access for cloud speech recognition.';
                 break;
             default:
-                errorMsg = `Speech recognition error: ${event.error}`;
+                errorMsg = `Speech recognition error (${event.error}): ${event.message || 'Unknown cause'}`;
         }
         if (voice.dotNetRef) {
             voice.dotNetRef.invokeMethodAsync('OnVoiceError', errorMsg);
@@ -311,6 +332,7 @@ function startRecognition() {
     };
 
     voice.recognition.onend = () => {
+        console.log('Speech recognition ended, will restart:', voice._restart);
         voice.isListening = false;
         if (voice.dotNetRef) {
             voice.dotNetRef.invokeMethodAsync('OnVoiceStatusChanged', false);
@@ -326,6 +348,7 @@ function startRecognition() {
 function matchVoiceCommand(transcript) {
     const text = transcript.toLowerCase();
     const words = text.split(/\s+/);
+    console.log('Matching voice:', text, 'Words:', words);
     const commands = {
         jump: ['jump', 'up', 'hop', 'leap'],
         shoot: ['shoot', 'fire', 'bang', 'pew', 'attack', 'hit']
@@ -339,11 +362,19 @@ function matchVoiceCommand(transcript) {
 }
 
 function attachInput() {
+    console.log('Keyboard input attached');
     window.addEventListener('keydown', (event) => {
         if (keysDown.has(event.code)) {
             return;
         }
         keysDown.add(event.code);
+        console.log('Key pressed:', event.code);
+
+        // Refocus game area so buttons don't steal input
+        if (event.target && (event.target.tagName === 'BUTTON' || event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT')) {
+            focusGameArea();
+        }
+
         if (event.code === 'Space' || event.code === 'ArrowUp') {
             event.preventDefault();
             tryJump(false);
@@ -352,11 +383,27 @@ function attachInput() {
             event.preventDefault();
             tryShoot(false);
         }
+
+        notifyDebugKey(event.code);
     });
 
     window.addEventListener('keyup', (event) => {
         keysDown.delete(event.code);
     });
+}
+
+function focusGameArea() {
+    if (!canvas) return;
+    const gameArea = document.getElementById('game-area');
+    if (gameArea) {
+        gameArea.focus();
+    }
+}
+
+function notifyDebugKey(code) {
+    if (dotNetRef) {
+        dotNetRef.invokeMethodAsync('OnDebugKeyEvent', code);
+    }
 }
 
 function loop(timestamp) {
@@ -773,6 +820,7 @@ function initGroundMarkers() {
 }
 
 function tryJump(isVoice) {
+    console.log(`Jump attempted, onGround: ${player.onGround}, running: ${state.running}`);
     if (!state.running || state.gameOver || !player.onGround) {
         return false;
     }
@@ -786,6 +834,7 @@ function tryJump(isVoice) {
 }
 
 function tryShoot(isVoice) {
+    console.log(`Shoot attempted, cooldown: ${shootCooldown.toFixed(2)}, running: ${state.running}`);
     if (!state.running || state.gameOver || shootCooldown > 0) {
         return false;
     }
