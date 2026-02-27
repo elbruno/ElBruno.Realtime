@@ -45,6 +45,7 @@ builder.Services.AddSingleton<ISpeechToTextClient>(
 // Application services
 // ──────────────────────────────────────────────────────────────
 builder.Services.AddSingleton<ConversationService>();
+builder.Services.AddSingleton<GameFeedbackService>();
 
 // ──────────────────────────────────────────────────────────────
 // SignalR with MessagePack for binary audio streaming
@@ -68,6 +69,7 @@ var app = builder.Build();
 app.UseCors();
 app.MapDefaultEndpoints();
 app.MapHub<ConversationHub>("/hubs/conversation");
+app.MapHub<GameHub>("/hubs/game");
 
 // Simple health/info endpoint
 app.MapGet("/", () => new

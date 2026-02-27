@@ -1,0 +1,26 @@
+<nav class="app-nav">
+    <NavLink href="conversation" Match="NavLinkMatch.All">💬 Conversation</NavLink>
+    <NavLink href="game" Match="NavLinkMatch.All">🎮 Game</NavLink>
+</nav>
+
+<style>
+    .app-nav {
+        display: flex;
+        gap: 1rem;
+        margin-top: 0.75rem;
+        font-weight: 600;
+    }
+
+    .app-nav a {
+        color: #e2e8f0;
+        text-decoration: none;
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        background: rgba(30, 41, 59, 0.6);
+    }
+
+    .app-nav a.active {
+        background: #38bdf8;
+        color: #0f172a;
+    }
+</style>

@@ -1,0 +1,468 @@
+@page "/game"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.SignalR.Client
+@implements IAsyncDisposable
+@inject IConfiguration Configuration
+@inject IJSRuntime JS
+
+<PageTitle>Game — PersonaPlex</PageTitle>
+
+<div class="game-page">
+    <header class="game-header">
+        <div>
+            <h2>🎮 Side-Scroller</h2>
+            <div class="game-subtitle">Voice + keyboard powered run-and-jump challenge</div>
+        </div>
+        <div class="game-controls">
+            <button class="btn-primary" @onclick="StartGame" disabled="@isRunning">▶️ Start</button>
+            <button class="btn-secondary" @onclick="PauseGame" disabled="@(!isRunning)">⏸️ Pause</button>
+            <button class="btn-secondary" @onclick="RestartGame">🔄 Restart</button>
+        </div>
+    </header>
+
+    <section class="game-panel">
+        <div class="game-area">
+            <canvas id="game-canvas" width="800" height="400"></canvas>
+
+            <div class="hud">
+                <span>Score: <strong>@score</strong></span>
+                <span>Lives: <strong>@lives</strong></span>
+                <span class="voice-status @(voiceListening ? "listening" : "idle")">
+                    @(voiceSupported
+                        ? (voiceListening ? "🎤 Listening" : "🎤 Voice Ready")
+                        : "🎤 Voice Unsupported")
+                </span>
+                <span class="voice-last">Last: <strong>@lastVoiceCommand</strong></span>
+            </div>
+
+            @if (isGameOver)
+            {
+                <div class="game-over">
+                    <div class="game-over-card">
+                        <h3>Game Over</h3>
+                        <p>Final score: <strong>@score</strong></p>
+                        <button class="btn-primary" @onclick="RestartGame">Play Again</button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <aside class="game-sidebar">
+            <div class="voice-panel">
+                <h3>🎤 Voice Control</h3>
+                <p>@voiceStatusMessage</p>
+                <button class="btn-secondary" @onclick="ToggleVoice" disabled="@(!voiceSupported)">
+                    @(voiceEnabled ? "Stop Voice" : "Start Voice")
+                </button>
+                @if (!string.IsNullOrWhiteSpace(voiceError))
+                {
+                    <div class="voice-error">@voiceError</div>
+                }
+            </div>
+
+            <div class="instructions">
+                <h3>Controls</h3>
+                <ul>
+                    <li><strong>Jump:</strong> Space or say <em>"jump"</em></li>
+                    <li><strong>Shoot:</strong> S key or say <em>"shoot"</em></li>
+                    <li><strong>Pause:</strong> Use the Pause button</li>
+                    <li><strong>Restart:</strong> Use Restart after Game Over</li>
+                </ul>
+                <div class="tips">
+                    Tip: Voice commands give bonus points and trigger hype TTS feedback!
+                </div>
+            </div>
+        </aside>
+    </section>
+</div>
+
+@code {
+    private HubConnection? hubConnection;
+    private IJSObjectReference? gameModule;
+    private DotNetObjectReference<Game>? dotNetRef;
+    private readonly Random rng = new();
+
+    private int score;
+    private int lives = 3;
+    private bool isRunning;
+    private bool isGameOver;
+    private bool voiceSupported;
+    private bool voiceEnabled;
+    private bool voiceListening;
+    private string lastVoiceCommand = "—";
+    private string voiceStatusMessage = "Voice commands ready.";
+    private string voiceError = string.Empty;
+
+    private static readonly string[] JumpPhrases = { "Nice jump!", "Smooth!", "Great hop!", "Clean leap!" };
+    private static readonly string[] ShootPhrases = { "Got 'em!", "Bullseye!", "Nice shot!", "Boom!" };
+    private static readonly string[] VoicePhrases = { "Voice power!", "Command received!", "Nice call!" };
+    private static readonly string[] HitPhrases = { "Ouch!", "Watch out!", "Careful!" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var apiUrl = Configuration.GetConnectionString("api")
+            ?? Configuration["Services:api:https:0"]
+            ?? Configuration["Services:api:http:0"]
+            ?? "https://localhost:5001";
+
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl($"{apiUrl}/hubs/game")
+            .AddMessagePackProtocol()
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<string>("ReceiveFeedback", message => _ = SpeakAsync(message));
+
+        hubConnection.Closed += _ =>
+        {
+            InvokeAsync(StateHasChanged);
+            return Task.CompletedTask;
+        };
+
+        try
+        {
+            await hubConnection.StartAsync();
+        }
+        catch
+        {
+            // Ignore for now; game works without backend feedback.
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        dotNetRef = DotNetObjectReference.Create(this);
+        gameModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/game-engine.js");
+        await gameModule.InvokeVoidAsync("initGame", "game-canvas", dotNetRef);
+        voiceSupported = await gameModule.InvokeAsync<bool>("isVoiceSupported");
+        voiceStatusMessage = voiceSupported ? "Voice commands ready." : "Voice commands need Chrome or Edge.";
+        StateHasChanged();
+    }
+
+    private async Task StartGame()
+    {
+        if (gameModule is null)
+        {
+            return;
+        }
+        if (isGameOver)
+        {
+            await RestartGame();
+            return;
+        }
+        await gameModule.InvokeVoidAsync("startGame");
+        isRunning = true;
+        isGameOver = false;
+    }
+
+    private async Task PauseGame()
+    {
+        if (gameModule is null)
+        {
+            return;
+        }
+        await gameModule.InvokeVoidAsync("pauseGame");
+        isRunning = false;
+    }
+
+    private async Task RestartGame()
+    {
+        if (gameModule is null)
+        {
+            return;
+        }
+        await gameModule.InvokeVoidAsync("resetGame");
+        await gameModule.InvokeVoidAsync("startGame");
+        isRunning = true;
+        isGameOver = false;
+        score = 0;
+        lives = 3;
+        lastVoiceCommand = "—";
+    }
+
+    private async Task ToggleVoice()
+    {
+        if (!voiceSupported || gameModule is null)
+        {
+            return;
+        }
+
+        voiceError = string.Empty;
+        if (voiceEnabled)
+        {
+            await gameModule.InvokeVoidAsync("stopVoiceControl");
+            voiceEnabled = false;
+            voiceListening = false;
+            voiceStatusMessage = "Voice commands ready.";
+        }
+        else
+        {
+            await gameModule.InvokeVoidAsync("startVoiceControl", dotNetRef);
+            voiceEnabled = true;
+            voiceStatusMessage = "Listening for jump and shoot.";
+        }
+    }
+
+    private async Task SpeakAsync(string text)
+    {
+        if (gameModule is null || string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+        await gameModule.InvokeVoidAsync("speakText", text);
+    }
+
+    private async Task SpeakRandomAsync(string[] options)
+    {
+        var phrase = options[rng.Next(options.Length)];
+        await SpeakAsync(phrase);
+    }
+
+    [JSInvokable]
+    public void OnScoreChanged(int newScore)
+    {
+        score = newScore;
+        InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public void OnLivesChanged(int newLives)
+    {
+        lives = newLives;
+        InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task OnGameEvent(string eventType, string data)
+    {
+        switch (eventType)
+        {
+            case "jumped-obstacle":
+                await SpeakRandomAsync(JumpPhrases);
+                break;
+            case "enemy-killed":
+                await SpeakRandomAsync(ShootPhrases);
+                break;
+            case "voice-command":
+                await SpeakRandomAsync(VoicePhrases);
+                break;
+            case "player-hit":
+                await SpeakRandomAsync(HitPhrases);
+                break;
+        }
+    }
+
+    [JSInvokable]
+    public void OnGameOver(int finalScore)
+    {
+        score = finalScore;
+        isGameOver = true;
+        isRunning = false;
+        InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public void OnVoiceStatusChanged(bool listening)
+    {
+        voiceListening = listening;
+        InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public void OnVoiceCommand(string command)
+    {
+        lastVoiceCommand = command;
+        InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public void OnVoiceError(string message)
+    {
+        voiceError = message;
+        voiceEnabled = false;
+        voiceListening = false;
+        voiceStatusMessage = "Voice commands unavailable.";
+        InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (gameModule is not null)
+        {
+            try
+            {
+                await gameModule.InvokeVoidAsync("pauseGame");
+                await gameModule.InvokeVoidAsync("stopVoiceControl");
+            }
+            catch
+            {
+                // ignored
+            }
+        }
+        dotNetRef?.Dispose();
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}
+
+<style>
+    .game-page {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        padding: 1.5rem;
+        color: #f8fafc;
+    }
+
+    .game-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .game-subtitle {
+        color: #cbd5f5;
+        font-size: 0.9rem;
+    }
+
+    .game-controls {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .game-panel {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 280px;
+        gap: 1.5rem;
+        align-items: start;
+    }
+
+    .game-area {
+        position: relative;
+        width: 100%;
+        max-width: 900px;
+    }
+
+    #game-canvas {
+        width: 100%;
+        height: auto;
+        border: 2px solid #1f2937;
+        border-radius: 12px;
+        background: #87CEEB;
+        display: block;
+    }
+
+    .hud {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        background: rgba(15, 23, 42, 0.7);
+        padding: 0.5rem 0.9rem;
+        border-radius: 999px;
+        font-size: 0.9rem;
+        backdrop-filter: blur(6px);
+    }
+
+    .voice-status.listening {
+        color: #22c55e;
+    }
+
+    .voice-status.idle {
+        color: #fbbf24;
+    }
+
+    .voice-last {
+        opacity: 0.9;
+    }
+
+    .game-over {
+        position: absolute;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.75);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+    }
+
+    .game-over-card {
+        background: #0f172a;
+        border-radius: 16px;
+        padding: 2rem;
+        text-align: center;
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+    }
+
+    .game-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .voice-panel,
+    .instructions {
+        background: #0f172a;
+        border-radius: 16px;
+        padding: 1rem;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+    }
+
+    .voice-error {
+        color: #f87171;
+        margin-top: 0.5rem;
+    }
+
+    .instructions ul {
+        padding-left: 1.2rem;
+        margin: 0.5rem 0 0;
+    }
+
+    .tips {
+        margin-top: 0.75rem;
+        font-size: 0.85rem;
+        color: #a5b4fc;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        border: none;
+        border-radius: 999px;
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        font-weight: 600;
+    }
+
+    .btn-primary {
+        background: #38bdf8;
+        color: #0f172a;
+    }
+
+    .btn-secondary {
+        background: #1e293b;
+        color: #e2e8f0;
+    }
+
+    .btn-secondary:disabled,
+    .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    @@media (max-width: 980px) {
+        .game-panel {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
