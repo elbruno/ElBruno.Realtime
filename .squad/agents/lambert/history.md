@@ -156,3 +156,38 @@ Implemented comprehensive enhancements to the side-scroller game at Bruno's requ
 - `src/samples/scenario-03-blazor-aspire/scenario-04.Game/wwwroot/js/game-engine.js`
 - `src/samples/scenario-03-blazor-aspire/scenario-04.Game/Components/Pages/Game.razor`
 
+### 2026-02-28: All 7 Game Improvement Features Implemented
+
+Implemented all 7 features from Ripley's game improvement proposal in a single pass. All changes in 2 files: `game-engine.js` and `Game.razor`.
+
+**Feature 1 — Combo System:** Voice commands chained within 3 seconds increment a combo counter. Score multiplied by combo count (50 × comboCount × clarityMultiplier). "COMBO x3!" displayed with scaling animation. Combo event emitted.
+
+**Feature 2 — Shield/Block:** Voice command "shield"/"guard"/"protect"/"block"/"barrier" or KeyD activates 2-second invincibility. 5-second cooldown. Glowing cyan circle rendered around player. `isInvincibleNow()` checks both damage invincibility and shield.
+
+**Feature 3 — Speed Boost:** Voice command "fast"/"turbo"/"speed"/"boost"/"rapid"/"quick" or KeyF gives 1.5× scroll speed for 3 seconds. 8-second cooldown. Yellow/orange particle trail behind player. "⚡ TURBO" shown in HUD.
+
+**Feature 4 — Duck/Crouch:** Voice command "duck"/"down"/"crouch"/"low"/"avoid" or ArrowDown/KeyC crouches for 1 second. Collision height reduced to 28px (from 48px). Shorter/wider squished player drawn. Flying enemies spawned at wave 3+ that must be ducked under. Can't jump while ducking.
+
+**Feature 5 — High Score Persistence:** Top 5 scores saved to localStorage as `[{score, date}]`. Loaded on init. Saved on game over. Displayed on game-over card. `getHighScores()` exported for Blazor JS interop. Current score highlighted.
+
+**Feature 6 — Voice Clarity Scoring:** Confidence value from `SpeechRecognition` checked. >0.9 = "PERFECT!" + 2× score multiplier. <0.7 = "..." indicator, no bonus. `perfectCommands` and `totalVoiceCommands` tracked. Default confidence 0.9 if browser doesn't provide it.
+
+**Feature 7 — Difficulty Waves:** Wave increments every 30 seconds. Each wave: speed increases by `CONFIG.speedIncrease * 1.5`, obstacle/enemy timers decrease by 15% (compound). "WAVE N!" dramatic scale-up/fade-out announcement. Wave 3+: flying enemies spawn (35% chance). Wave 5+: enemy speed increased. Wave number shown in HUD. Event emitted.
+
+**Game.razor Updates:**
+- HUD: Wave counter, combo indicator (animated), shield cooldown with emoji, speed boost indicator
+- Sidebar: All new controls listed (Shield/D, Speed/F, Duck/Down)
+- Game-over card: High scores list, wave reached display
+- Event handlers: shield-activated, speed-boost, duck-activated, wave-change, combo — each with TTS phrase arrays
+- `LoadHighScoresAsync()` method for JS interop high score retrieval
+- `HighScoreEntry` record type for deserialization
+- New CSS: `.combo-indicator`, `.shield-cooldown`, `.speed-indicator`, `.high-scores`, `.final-wave`
+
+**Technical Notes:**
+- `speedMultiplier` computed before `scroll` in update() to avoid use-before-define
+- `checkCollisions()` uses `player.isDucking ? player.duckHeight : player.height` for collision rect
+- Flying enemies use new `COLORS.flying` (#E040FB) and get wing sprites with flapping animation
+- All new state properly reset in `resetGame()`
+- `applyVoiceCommand()` now accepts `confidence` parameter
+- Build: ✅ 0 errors, 0 warnings
+

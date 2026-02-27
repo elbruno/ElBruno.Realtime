@@ -124,3 +124,22 @@
 **Dallas' roles in Phases 1 & 3 are finalized.** Game scaffold created, AppHost registered, solution file updated. All builds clean per orchestration log 2026-02-27T17:42.
 
 **Cross-team:** Ripley designed, Lambert executed Phase 2 + Phase 4 (file moves + landing pages), Kane running Phase 5 smoke test (background), Parker updating docs (background).
+
+### 2026-02-27: Added High Score Recording to GameHub
+
+**Task:** Added optional in-memory high score recording to the existing `GameHub` SignalR hub as an API-backed complement to Lambert's localStorage high scores.
+
+**Changes (single file — `GameHub.cs`):**
+- Added `HighScoreEntry` record: `record HighScoreEntry(string PlayerName, int Score, DateTime RecordedAt)`
+- Static `ConcurrentDictionary<string, HighScoreEntry>` for thread-safe in-memory storage
+- `RecordScore(int score, string playerName)` — adds entry, broadcasts top 10 via `Clients.All.SendAsync("HighScoresUpdated", topScores)`
+- `GetHighScores()` — returns current top 10 sorted by score descending
+- Private `GetTopScores()` helper — shared LINQ query for both methods
+
+**Design notes:**
+- Static storage: Hub instances are transient (per-call), so scores must live in a static field
+- `ConcurrentDictionary` keyed by `PlayerName_Ticks` avoids duplicates and is lock-free
+- Top 10 enforced at query time (not insertion) — simpler, no pruning logic needed
+- No database — scores live only for the server session lifetime
+
+**Build:** ✅ 0 errors, 0 warnings. No Program.cs changes needed (hub already mapped at `/hubs/game`).

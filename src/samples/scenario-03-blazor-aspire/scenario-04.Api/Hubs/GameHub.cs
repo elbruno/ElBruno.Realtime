@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Linq;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.AI;
@@ -53,4 +54,33 @@ public sealed class GameHub : Hub
             _ => "unknown"
         };
     }
+
+    // ── High Score Recording ────────────────────────────────────
+    private static readonly ConcurrentDictionary<string, HighScoreEntry> s_scores = new();
+
+    public async Task RecordScore(int score, string playerName)
+    {
+        var entry = new HighScoreEntry(playerName ?? "Anonymous", score, DateTime.UtcNow);
+        var key = $"{entry.PlayerName}_{entry.RecordedAt.Ticks}";
+        s_scores.TryAdd(key, entry);
+
+        var topScores = GetTopScores();
+        await Clients.All.SendAsync("HighScoresUpdated", topScores);
+    }
+
+    public Task<List<HighScoreEntry>> GetHighScores()
+    {
+        return Task.FromResult(GetTopScores());
+    }
+
+    private static List<HighScoreEntry> GetTopScores()
+    {
+        return s_scores.Values
+            .OrderByDescending(e => e.Score)
+            .ThenBy(e => e.RecordedAt)
+            .Take(10)
+            .ToList();
+    }
 }
+
+public record HighScoreEntry(string PlayerName, int Score, DateTime RecordedAt);

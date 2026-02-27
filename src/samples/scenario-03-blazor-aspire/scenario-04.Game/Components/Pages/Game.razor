@@ -28,6 +28,19 @@
             <div class="hud">
                 <span>Score: <strong>@score</strong></span>
                 <span>Lives: <strong>@lives</strong></span>
+                <span>Wave: <strong>@currentWave</strong></span>
+                @if (comboCount > 1)
+                {
+                    <span class="combo-indicator">Combo: <strong>x@comboCount</strong></span>
+                }
+                @if (shieldCooldown > 0)
+                {
+                    <span class="shield-cooldown">🛡️ @(shieldCooldown)s</span>
+                }
+                @if (speedBoostActive)
+                {
+                    <span class="speed-indicator">⚡ TURBO</span>
+                }
                 <span class="voice-status @(voiceListening ? "listening" : "idle")">
                     @(voiceSupported
                         ? (voiceListening ? "🎤 Listening" : "🎤 Voice Ready")
@@ -45,6 +58,20 @@
                     <div class="game-over-card">
                         <h3>💀 Game Over</h3>
                         <p class="final-score">Final score: <strong>@score</strong></p>
+                        <p class="final-wave">Wave reached: <strong>@currentWave</strong></p>
+                        @if (displayHighScores.Any())
+                        {
+                            <div class="high-scores">
+                                <h4>🏆 High Scores</h4>
+                                @for (int i = 0; i < displayHighScores.Count; i++)
+                                {
+                                    <div class="high-score-entry @(displayHighScores[i].Score == score ? "current" : "")">
+                                        <span>#@(i + 1)</span>
+                                        <span>@displayHighScores[i].Score</span>
+                                    </div>
+                                }
+                            </div>
+                        }
                         <button class="btn-primary pulse" @onclick="RestartGame">🔄 Play Again</button>
                     </div>
                 </div>
@@ -80,11 +107,14 @@
                 <ul>
                     <li><strong>Jump:</strong> Space or say <em>"jump"</em></li>
                     <li><strong>Shoot:</strong> S key or say <em>"shoot"</em></li>
+                    <li><strong>Shield:</strong> D key or say <em>"shield"</em></li>
+                    <li><strong>Speed:</strong> F key or say <em>"fast"</em></li>
+                    <li><strong>Duck:</strong> Down arrow or say <em>"duck"</em></li>
                     <li><strong>Pause:</strong> Use the Pause button</li>
                     <li><strong>Restart:</strong> Use Restart after Game Over</li>
                 </ul>
                 <div class="tips">
-                    Tip: Voice commands give bonus points and trigger hype TTS feedback!
+                    Tip: Chain voice commands within 3 seconds for combo multipliers! Shield blocks damage, speed gives a turbo boost, and duck avoids flying enemies.
                 </div>
             </div>
 
@@ -124,11 +154,23 @@
     private string debugHubState = "Disconnected";
     private string debugVoiceState = "Not started";
     private string debugLastKey = "—";
+    private int currentWave = 1;
+    private int comboCount;
+    private int shieldCooldown;
+    private bool speedBoostActive;
+    private List<HighScoreEntry> displayHighScores = new();
 
     private static readonly string[] JumpPhrases = { "Nice jump!", "Smooth!", "Great hop!", "Clean leap!" };
     private static readonly string[] ShootPhrases = { "Got 'em!", "Bullseye!", "Nice shot!", "Boom!" };
     private static readonly string[] VoicePhrases = { "Voice power!", "Command received!", "Nice call!" };
     private static readonly string[] HitPhrases = { "Ouch!", "Watch out!", "Careful!" };
+    private static readonly string[] ShieldPhrases = { "Protected!", "Shield up!", "Guard mode!" };
+    private static readonly string[] SpeedPhrases = { "Turbo mode!", "So fast!", "Speed demon!" };
+    private static readonly string[] DuckPhrases = { "Nice dodge!", "Low profile!", "Sneaky!" };
+    private static readonly string[] WavePhrases = { "New wave incoming!", "Stay sharp!", "Here they come!" };
+    private static readonly string[] ComboPhrases = { "Combo chain!", "On fire!", "Unstoppable!" };
+
+    private record HighScoreEntry(int Score, string Date);
 
     private bool IsHubConnected => hubConnection?.State == HubConnectionState.Connected;
 
@@ -241,8 +283,13 @@
         isGameOver = false;
         score = 0;
         lives = 3;
+        currentWave = 1;
+        comboCount = 0;
+        shieldCooldown = 0;
+        speedBoostActive = false;
         lastVoiceCommand = "—";
         voiceCommandLog.Clear();
+        displayHighScores.Clear();
         await FocusGameArea();
     }
 
@@ -266,7 +313,7 @@
         {
             await gameModule.InvokeVoidAsync("startVoiceControl", dotNetRef);
             voiceEnabled = true;
-            voiceStatusMessage = "Listening for jump and shoot.";
+            voiceStatusMessage = "Listening for commands.";
             debugVoiceState = "Listening";
         }
         await FocusGameArea();
@@ -285,6 +332,20 @@
     {
         var phrase = options[rng.Next(options.Length)];
         await SpeakAsync(phrase);
+    }
+
+    private async Task LoadHighScoresAsync()
+    {
+        if (gameModule is null) return;
+        try
+        {
+            var scores = await gameModule.InvokeAsync<HighScoreEntry[]>("getHighScores");
+            displayHighScores = scores?.ToList() ?? new List<HighScoreEntry>();
+        }
+        catch
+        {
+            displayHighScores = new List<HighScoreEntry>();
+        }
     }
 
     [JSInvokable]
@@ -318,16 +379,42 @@
             case "player-hit":
                 await SpeakRandomAsync(HitPhrases);
                 break;
+            case "shield-activated":
+                await SpeakRandomAsync(ShieldPhrases);
+                break;
+            case "speed-boost":
+                await SpeakRandomAsync(SpeedPhrases);
+                break;
+            case "duck-activated":
+                await SpeakRandomAsync(DuckPhrases);
+                break;
+            case "wave-change":
+                if (int.TryParse(data, out var wave))
+                {
+                    currentWave = wave;
+                }
+                await SpeakRandomAsync(WavePhrases);
+                await InvokeAsync(StateHasChanged);
+                break;
+            case "combo":
+                if (int.TryParse(data, out var combo))
+                {
+                    comboCount = combo;
+                }
+                await SpeakRandomAsync(ComboPhrases);
+                await InvokeAsync(StateHasChanged);
+                break;
         }
     }
 
     [JSInvokable]
-    public void OnGameOver(int finalScore)
+    public async Task OnGameOver(int finalScore)
     {
         score = finalScore;
         isGameOver = true;
         isRunning = false;
-        InvokeAsync(StateHasChanged);
+        await LoadHighScoresAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     [JSInvokable]
@@ -572,6 +659,56 @@
         font-size: 1.5rem;
         margin-bottom: 1.5rem;
         color: #FFD60A;
+    }
+
+    .final-wave {
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+        color: #a5b4fc;
+    }
+
+    .high-scores {
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 214, 10, 0.3);
+    }
+
+    .high-scores h4 {
+        color: #FFD60A;
+        margin-bottom: 0.5rem;
+        font-size: 1rem;
+    }
+
+    .high-score-entry {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.9rem;
+        color: #e2e8f0;
+    }
+
+    .high-score-entry.current {
+        color: #FFD60A;
+        font-weight: bold;
+    }
+
+    .combo-indicator {
+        color: #FF6B9D;
+        font-weight: bold;
+        animation: pulse 0.5s ease-in-out infinite;
+    }
+
+    .shield-cooldown {
+        color: #00FFFF;
+        font-size: 0.85rem;
+    }
+
+    .speed-indicator {
+        color: #FF8C00;
+        font-weight: bold;
+        animation: pulse 0.8s ease-in-out infinite;
     }
 
     .game-sidebar {

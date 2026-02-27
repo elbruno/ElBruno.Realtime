@@ -11,7 +11,10 @@ const COLORS = {
     cloud: 'rgba(255, 255, 255, 0.3)',
     sun: '#FFE66D',
     particle: '#FF6B9D',
-    groundMarker: '#4a7c32'
+    groundMarker: '#4a7c32',
+    shield: 'rgba(0, 255, 255, 0.4)',
+    speedBoost: '#FF8C00',
+    flying: '#E040FB'
 };
 
 const CONFIG = {
@@ -43,7 +46,19 @@ const state = {
     nextScoreTime: CONFIG.scoreInterval,
     invincibleUntil: 0,
     screenShake: 0,
-    worldOffset: 0
+    worldOffset: 0,
+    comboCount: 0,
+    comboTimer: 0,
+    maxComboTime: 3.0,
+    shieldUntil: 0,
+    shieldCooldown: 0,
+    speedBoostUntil: 0,
+    speedBoostCooldown: 0,
+    wave: 1,
+    nextWaveTime: 30,
+    waveAnnounceTimer: 0,
+    perfectCommands: 0,
+    totalVoiceCommands: 0
 };
 
 const player = {
@@ -54,7 +69,11 @@ const player = {
     vy: 0,
     onGround: true,
     animFrame: 0,
-    jumpHeld: false
+    jumpHeld: false,
+    isDucking: false,
+    duckTimer: 0,
+    normalHeight: 48,
+    duckHeight: 28
 };
 
 let obstacles = [];
@@ -72,6 +91,10 @@ let lastSpeechText = '';
 let lastActionText = '';
 let speechTextTimer = 0;
 let actionTextTimer = 0;
+let waveText = '';
+let waveTextTimer = 0;
+let comboDisplayTimer = 0;
+let highScores = [];
 
 const keysDown = new Set();
 
@@ -100,6 +123,7 @@ export function initGame(canvasId, ref) {
         initGroundMarkers();
         initialized = true;
     }
+    loadHighScores();
 
     // Focus the game area wrapper so keyboard events work immediately
     const gameArea = canvas.closest('.game-area') || canvas.parentElement;
@@ -140,12 +164,25 @@ export function resetGame() {
     state.invincibleUntil = 0;
     state.screenShake = 0;
     state.worldOffset = 0;
+    state.comboCount = 0;
+    state.comboTimer = 0;
+    state.shieldUntil = 0;
+    state.shieldCooldown = 0;
+    state.speedBoostUntil = 0;
+    state.speedBoostCooldown = 0;
+    state.wave = 1;
+    state.nextWaveTime = 30;
+    state.waveAnnounceTimer = 0;
+    state.perfectCommands = 0;
+    state.totalVoiceCommands = 0;
 
     player.y = getGroundY() - player.height;
     player.vy = 0;
     player.onGround = true;
     player.animFrame = 0;
     player.jumpHeld = false;
+    player.isDucking = false;
+    player.duckTimer = 0;
 
     obstacles = [];
     holes = [];
@@ -160,23 +197,36 @@ export function resetGame() {
     lastActionText = '';
     speechTextTimer = 0;
     actionTextTimer = 0;
+    waveText = '';
+    waveTextTimer = 0;
+    comboDisplayTimer = 0;
 
     initGroundMarkers();
-
-    notifyScore();
     notifyLives();
     render();
     focusGameArea();
     console.log('Game reset');
 }
 
-export function applyVoiceCommand(command) {
+export function applyVoiceCommand(command, confidence) {
     if (!command) {
         return;
     }
-    console.log('Applying voice command:', command);
+    console.log('Applying voice command:', command, 'confidence:', confidence);
     const normalized = command.toLowerCase();
     let executed = false;
+
+    // Track voice clarity
+    state.totalVoiceCommands++;
+    const conf = (typeof confidence === 'number' && confidence > 0) ? confidence : 0.9;
+    const clarityMultiplier = conf > 0.9 ? 2 : 1;
+    if (conf > 0.9) {
+        state.perfectCommands++;
+        showActionText('PERFECT!');
+    } else if (conf < 0.7) {
+        addFloatingText('...', player.x + player.width / 2, player.y - 20);
+    }
+
     if (normalized === 'jump') {
         executed = tryJump(true);
         if (executed) {
@@ -187,10 +237,41 @@ export function applyVoiceCommand(command) {
         if (executed) {
             showActionText('ACTION: SHOOT');
         }
+    } else if (normalized === 'shield') {
+        executed = tryShield(true);
+        if (executed) {
+            showActionText('SHIELD!');
+        }
+    } else if (normalized === 'speed') {
+        executed = trySpeedBoost(true);
+        if (executed) {
+            showActionText('TURBO!');
+        }
+    } else if (normalized === 'duck') {
+        executed = tryDuck(true);
+        if (executed) {
+            showActionText('DUCK!');
+        }
     }
     if (executed) {
-        addScore(50);
+        // Combo system
+        if (state.comboTimer > 0) {
+            state.comboCount++;
+        } else {
+            state.comboCount = 1;
+        }
+        state.comboTimer = state.maxComboTime;
+
+        const baseScore = 50 * state.comboCount * clarityMultiplier;
+        addScore(baseScore);
         emitEvent('voice-command', normalized);
+
+        if (state.comboCount > 1) {
+            showActionText('COMBO x' + state.comboCount + '!');
+            comboDisplayTimer = 2.0;
+            emitEvent('combo', String(state.comboCount));
+            console.log('Combo chain:', state.comboCount);
+        }
     }
 }
 
@@ -289,16 +370,20 @@ function startRecognition() {
 
     voice.recognition.onresult = (event) => {
         let finalTranscript = '';
+        let confidence = 0.9;
         for (let i = event.resultIndex; i < event.results.length; i++) {
             if (event.results[i].isFinal) {
                 finalTranscript += event.results[i][0].transcript;
+                if (typeof event.results[i][0].confidence === 'number' && event.results[i][0].confidence > 0) {
+                    confidence = event.results[i][0].confidence;
+                }
             }
         }
         if (finalTranscript) {
             const command = matchVoiceCommand(finalTranscript);
-            console.log('Voice transcript:', finalTranscript, 'Matched command:', command);
+            console.log('Voice transcript:', finalTranscript, 'Matched command:', command, 'Confidence:', confidence.toFixed(2));
             if (command) {
-                applyVoiceCommand(command);
+                applyVoiceCommand(command, confidence);
                 if (voice.dotNetRef) {
                     voice.dotNetRef.invokeMethodAsync('OnVoiceCommand', command);
                 }
@@ -353,7 +438,10 @@ function matchVoiceCommand(transcript) {
     console.log('Matching voice:', text, 'Words:', words);
     const commands = {
         jump: ['jump', 'up', 'hop', 'leap'],
-        shoot: ['shoot', 'fire', 'bang', 'pew', 'attack', 'hit']
+        shoot: ['shoot', 'fire', 'bang', 'pew', 'attack', 'hit'],
+        shield: ['shield', 'guard', 'protect', 'block', 'barrier'],
+        speed: ['fast', 'turbo', 'speed', 'boost', 'rapid', 'quick'],
+        duck: ['duck', 'down', 'crouch', 'low', 'avoid']
     };
     for (const [command, aliases] of Object.entries(commands)) {
         if (aliases.some(alias => words.includes(alias))) {
@@ -384,6 +472,18 @@ function attachInput() {
         if (event.code === 'KeyS') {
             event.preventDefault();
             tryShoot(false);
+        }
+        if (event.code === 'KeyD') {
+            event.preventDefault();
+            tryShield(false);
+        }
+        if (event.code === 'KeyF') {
+            event.preventDefault();
+            trySpeedBoost(false);
+        }
+        if (event.code === 'ArrowDown' || event.code === 'KeyC') {
+            event.preventDefault();
+            tryDuck(false);
         }
 
         notifyDebugKey(event.code);
@@ -428,8 +528,60 @@ function update(delta) {
     }
     state.time += delta;
     const frame = delta * 60;
-    const scroll = state.scrollSpeed * frame;
     shootCooldown = Math.max(0, shootCooldown - delta);
+
+    // Combo timer
+    if (state.comboTimer > 0) {
+        state.comboTimer -= delta;
+        if (state.comboTimer <= 0) {
+            state.comboCount = 0;
+            state.comboTimer = 0;
+        }
+    }
+    comboDisplayTimer = Math.max(0, comboDisplayTimer - delta);
+
+    // Shield cooldown
+    state.shieldCooldown = Math.max(0, state.shieldCooldown - delta);
+
+    // Speed boost cooldown & effect
+    state.speedBoostCooldown = Math.max(0, state.speedBoostCooldown - delta);
+    let speedMultiplier = 1;
+    if (state.time < state.speedBoostUntil) {
+        speedMultiplier = 1.5;
+        // Particle trail while boosted
+        if (Math.random() < 0.4) {
+            particles.push({
+                x: player.x, y: player.y + player.height / 2,
+                vx: -2 - Math.random() * 2, vy: (Math.random() - 0.5) * 2,
+                life: 0.4 + Math.random() * 0.3, maxLife: 0.7,
+                alpha: 1, color: COLORS.speedBoost
+            });
+        }
+    }
+    const scroll = state.scrollSpeed * speedMultiplier * frame;
+
+    // Duck timer
+    if (player.isDucking) {
+        player.duckTimer -= delta;
+        if (player.duckTimer <= 0) {
+            player.isDucking = false;
+            player.duckTimer = 0;
+        }
+    }
+
+    // Wave system
+    if (state.time >= state.nextWaveTime) {
+        state.wave++;
+        state.nextWaveTime += 30;
+        state.scrollSpeed += CONFIG.speedIncrease * 1.5;
+        waveText = 'WAVE ' + state.wave + '!';
+        waveTextTimer = 2.0;
+        state.waveAnnounceTimer = 2.0;
+        emitEvent('wave-change', String(state.wave));
+        console.log('Wave', state.wave, 'started, speed:', state.scrollSpeed.toFixed(2));
+    }
+    state.waveAnnounceTimer = Math.max(0, state.waveAnnounceTimer - delta);
+    waveTextTimer = Math.max(0, waveTextTimer - delta);
 
     if (state.time >= state.nextSpeedTime) {
         state.scrollSpeed += CONFIG.speedIncrease;
@@ -449,13 +601,15 @@ function update(delta) {
         } else {
             spawnRock();
         }
-        obstacleTimer = randomRange(0.9, 1.8) / Math.max(0.6, state.scrollSpeed / 2);
+        const waveTimerFactor = Math.pow(0.85, state.wave - 1);
+        obstacleTimer = randomRange(0.9, 1.8) * waveTimerFactor / Math.max(0.6, state.scrollSpeed / 2);
     }
 
     enemyTimer -= delta;
     if (enemyTimer <= 0) {
         spawnEnemy();
-        enemyTimer = randomRange(1.8, 3.4) / Math.max(0.7, state.scrollSpeed / 2);
+        const waveTimerFactor = Math.pow(0.85, state.wave - 1);
+        enemyTimer = randomRange(1.8, 3.4) * waveTimerFactor / Math.max(0.7, state.scrollSpeed / 2);
     }
 
     // Variable jump: extra gravity when space released while ascending (gravity-cut)
@@ -675,6 +829,55 @@ function render() {
         drawPlayer();
     }
 
+    // Shield visual: glowing circle around player
+    if (state.time < state.shieldUntil) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#00FFFF';
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(player.x + player.width / 2, player.y + player.height / 2, 30, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.restore();
+    }
+
+    // Combo display
+    if (state.comboCount > 1 && comboDisplayTimer > 0) {
+        const comboAlpha = Math.min(1, comboDisplayTimer / 0.5);
+        const comboScale = 1 + (comboDisplayTimer / 2.0) * 0.3;
+        ctx.save();
+        ctx.globalAlpha = comboAlpha;
+        ctx.font = `bold ${Math.floor(28 * comboScale)}px monospace`;
+        ctx.fillStyle = '#FF6B9D';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4;
+        ctx.textAlign = 'center';
+        const comboText = 'COMBO x' + state.comboCount + '!';
+        ctx.strokeText(comboText, canvas.width / 2, 100);
+        ctx.fillText(comboText, canvas.width / 2, 100);
+        ctx.globalAlpha = 1;
+        ctx.restore();
+    }
+
+    // Wave announcement
+    if (waveTextTimer > 0) {
+        const waveAlpha = Math.min(1, waveTextTimer / 0.5);
+        const waveScale = 1 + (waveTextTimer / 2.0) * 0.5;
+        ctx.save();
+        ctx.globalAlpha = waveAlpha;
+        ctx.font = `bold ${Math.floor(36 * waveScale)}px monospace`;
+        ctx.fillStyle = '#FFD60A';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 5;
+        ctx.textAlign = 'center';
+        ctx.strokeText(waveText, canvas.width / 2, canvas.height / 2 - 20);
+        ctx.fillText(waveText, canvas.width / 2, canvas.height / 2 - 20);
+        ctx.globalAlpha = 1;
+        ctx.restore();
+    }
+
     if (speechTextTimer > 0) {
         const alpha = Math.min(1, speechTextTimer / 0.5);
         ctx.globalAlpha = alpha;
@@ -708,6 +911,27 @@ function render() {
 
 function drawPlayer() {
     const legOffset = Math.sin(player.animFrame) * 4;
+
+    if (player.isDucking) {
+        // Ducking: shorter, wider squished version
+        const duckY = player.y + player.height - player.duckHeight;
+        ctx.fillStyle = COLORS.player;
+        ctx.fillRect(player.x + 4, duckY + 6, 24, 16);
+
+        ctx.fillStyle = COLORS.playerSkin;
+        ctx.beginPath();
+        ctx.arc(player.x + 16, duckY + 5, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(player.x + 12, duckY + 4, 3, 2);
+        ctx.fillRect(player.x + 19, duckY + 4, 3, 2);
+
+        ctx.fillStyle = COLORS.player;
+        ctx.fillRect(player.x + 6, duckY + 22, 8, 6);
+        ctx.fillRect(player.x + 18, duckY + 22, 8, 6);
+        return;
+    }
     
     ctx.fillStyle = COLORS.player;
     ctx.fillRect(player.x + 8, player.y + 12, 16, 24);
@@ -757,8 +981,9 @@ function drawRock(rock) {
 
 function drawEnemy(enemy) {
     const bounce = Math.sin((enemy.animFrame || 0)) * 3;
-    
-    ctx.fillStyle = COLORS.enemy;
+    const color = enemy.flying ? COLORS.flying : COLORS.enemy;
+
+    ctx.fillStyle = color;
     ctx.fillRect(enemy.x, enemy.y + bounce, enemy.width, enemy.height - bounce);
     
     ctx.fillStyle = '#ffffff';
@@ -788,6 +1013,22 @@ function drawEnemy(enemy) {
     ctx.lineTo(enemy.x + 22, enemy.y - 4 + bounce);
     ctx.lineTo(enemy.x + 26, enemy.y + bounce);
     ctx.fill();
+
+    // Wings for flying enemies
+    if (enemy.flying) {
+        const wingFlap = Math.sin((enemy.animFrame || 0) * 2) * 6;
+        ctx.fillStyle = COLORS.flying;
+        ctx.beginPath();
+        ctx.moveTo(enemy.x, enemy.y + 8 + bounce);
+        ctx.lineTo(enemy.x - 10, enemy.y - 2 + bounce + wingFlap);
+        ctx.lineTo(enemy.x + 6, enemy.y + 4 + bounce);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(enemy.x + enemy.width, enemy.y + 8 + bounce);
+        ctx.lineTo(enemy.x + enemy.width + 10, enemy.y - 2 + bounce + wingFlap);
+        ctx.lineTo(enemy.x + enemy.width - 6, enemy.y + 4 + bounce);
+        ctx.fill();
+    }
 }
 
 function drawProjectile(projectile) {
@@ -831,8 +1072,8 @@ function initGroundMarkers() {
 }
 
 function tryJump(isVoice) {
-    console.log(`Jump attempted, onGround: ${player.onGround}, running: ${state.running}`);
-    if (!state.running || state.gameOver || !player.onGround) {
+    console.log(`Jump attempted, onGround: ${player.onGround}, running: ${state.running}, ducking: ${player.isDucking}`);
+    if (!state.running || state.gameOver || !player.onGround || player.isDucking) {
         return false;
     }
     player.vy = CONFIG.jumpVelocity;
@@ -868,6 +1109,55 @@ function tryShoot(isVoice) {
     return true;
 }
 
+function tryShield(isVoice) {
+    console.log(`Shield attempted, cooldown: ${state.shieldCooldown.toFixed(2)}, running: ${state.running}`);
+    if (!state.running || state.gameOver || state.shieldCooldown > 0) {
+        return false;
+    }
+    state.shieldUntil = state.time + 2;
+    state.shieldCooldown = 5;
+    spawnParticles(player.x + player.width / 2, player.y + player.height / 2, 12, '#00FFFF');
+    if (isVoice) {
+        emitEvent('shield-activated', 'voice');
+    } else {
+        emitEvent('shield-activated', 'keyboard');
+    }
+    console.log('Shield activated until', state.shieldUntil.toFixed(2));
+    return true;
+}
+
+function trySpeedBoost(isVoice) {
+    console.log(`Speed boost attempted, cooldown: ${state.speedBoostCooldown.toFixed(2)}, running: ${state.running}`);
+    if (!state.running || state.gameOver || state.speedBoostCooldown > 0) {
+        return false;
+    }
+    state.speedBoostUntil = state.time + 3;
+    state.speedBoostCooldown = 8;
+    if (isVoice) {
+        emitEvent('speed-boost', 'voice');
+    } else {
+        emitEvent('speed-boost', 'keyboard');
+    }
+    console.log('Speed boost activated until', state.speedBoostUntil.toFixed(2));
+    return true;
+}
+
+function tryDuck(isVoice) {
+    console.log(`Duck attempted, running: ${state.running}, ducking: ${player.isDucking}`);
+    if (!state.running || state.gameOver) {
+        return false;
+    }
+    player.isDucking = true;
+    player.duckTimer = 1.0;
+    if (isVoice) {
+        emitEvent('duck-activated', 'voice');
+    } else {
+        emitEvent('duck-activated', 'keyboard');
+    }
+    console.log('Duck activated');
+    return true;
+}
+
 function spawnRock() {
     const width = randomRange(28, 60);
     const height = randomRange(28, 52);
@@ -889,17 +1179,28 @@ function spawnHole() {
 }
 
 function spawnEnemy() {
+    const groundY = getGroundY();
+    const isFlying = state.wave >= 3 && Math.random() < 0.35;
+    const enemySpeed = state.wave >= 5
+        ? state.scrollSpeed + randomRange(0.5, 1.2)
+        : state.scrollSpeed + randomRange(0.3, 0.8);
     enemies.push({
         x: canvas.width + randomRange(30, 120),
-        y: getGroundY() - 32,
+        y: isFlying ? groundY - 80 : groundY - 32,
         width: 30,
         height: 32,
-        speed: state.scrollSpeed + randomRange(0.3, 0.8)
+        speed: enemySpeed,
+        flying: isFlying
     });
+    if (isFlying) {
+        console.log('Flying enemy spawned at wave', state.wave);
+    }
 }
 
 function checkCollisions() {
-    const playerRect = { x: player.x, y: player.y, width: player.width, height: player.height };
+    const collisionHeight = player.isDucking ? player.duckHeight : player.height;
+    const collisionY = player.isDucking ? (player.y + player.height - collisionHeight) : player.y;
+    const playerRect = { x: player.x, y: collisionY, width: player.width, height: collisionHeight };
     const invincible = isInvincibleNow();
 
     obstacles.forEach(obstacle => {
@@ -981,6 +1282,7 @@ function loseLife(reason) {
         state.gameOver = true;
         state.running = false;
         emitEvent('game-over', reason);
+        saveHighScore(state.score);
         speakText(`Game over! Your final score is ${state.score} points.`);
         if (dotNetRef) {
             dotNetRef.invokeMethodAsync('OnGameOver', state.score);
@@ -1029,7 +1331,7 @@ function isOverHole(x) {
 }
 
 function isInvincibleNow() {
-    return state.time < state.invincibleUntil;
+    return state.time < state.invincibleUntil || state.time < state.shieldUntil;
 }
 
 function getGroundY() {
@@ -1065,4 +1367,45 @@ function addFloatingText(text, x, y) {
         alpha: 1,
         color: '#FFD60A'
     });
+}
+
+function loadHighScores() {
+    try {
+        const stored = localStorage.getItem('sideScrollerHighScores');
+        highScores = stored ? JSON.parse(stored) : [];
+        console.log('High scores loaded:', highScores.length, 'entries');
+    } catch (e) {
+        console.warn('Failed to load high scores:', e);
+        highScores = [];
+    }
+}
+
+function saveHighScore(score) {
+    try {
+        highScores.push({ score, date: new Date().toISOString() });
+        highScores.sort((a, b) => b.score - a.score);
+        highScores = highScores.slice(0, 5);
+        localStorage.setItem('sideScrollerHighScores', JSON.stringify(highScores));
+        console.log('High score saved:', score, 'Top 5:', highScores.map(h => h.score));
+    } catch (e) {
+        console.warn('Failed to save high score:', e);
+    }
+}
+
+export function getHighScores() {
+    loadHighScores();
+    return highScores;
+}
+
+export function getGameState() {
+    return {
+        wave: state.wave,
+        comboCount: state.comboCount,
+        shieldCooldown: Math.max(0, Math.ceil(state.shieldCooldown)),
+        shieldActive: state.time < state.shieldUntil,
+        speedBoostActive: state.time < state.speedBoostUntil,
+        speedBoostCooldown: Math.max(0, Math.ceil(state.speedBoostCooldown)),
+        perfectCommands: state.perfectCommands,
+        totalVoiceCommands: state.totalVoiceCommands
+    };
 }
