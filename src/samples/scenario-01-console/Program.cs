@@ -43,6 +43,13 @@ else
     Console.WriteLine($"   Whisper: ⬇️ Will be downloaded on first use to {whisperModelPath} (~75 MB)");
 }
 Console.WriteLine($"   TTS:     Auto-downloaded by QwenTTS on first use");
+
+// Show Whisper runtime info (AVX, CUDA, etc.)
+var runtimeInfo = WhisperSpeechToTextClient.GetRuntimeInfo();
+if (!string.IsNullOrEmpty(runtimeInfo))
+{
+    Console.WriteLine($"   Runtime: {runtimeInfo}");
+}
 Console.WriteLine();
 
 // ── 2. Configure services ───────────────────────────────────────

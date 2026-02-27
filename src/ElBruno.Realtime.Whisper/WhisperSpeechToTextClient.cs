@@ -16,6 +16,7 @@ public class WhisperSpeechToTextClient : ISpeechToTextClient
     private readonly string _modelId;
     private readonly string? _cacheDir;
     private readonly string? _language;
+    private readonly bool _useGpu;
     private WhisperFactory? _factory;
     private bool _disposed;
     private readonly SemaphoreSlim _initLock = new(1, 1);
@@ -26,14 +27,17 @@ public class WhisperSpeechToTextClient : ISpeechToTextClient
     /// <param name="modelId">Whisper model identifier (e.g., "whisper-tiny.en", "whisper-base.en"). Default: "whisper-tiny.en".</param>
     /// <param name="cacheDir">Optional directory for caching downloaded models.</param>
     /// <param name="language">Optional language hint (e.g., "en"). Default: auto-detect.</param>
+    /// <param name="useGpu">Whether to use GPU acceleration if available. Default: true. Falls back to CPU automatically.</param>
     public WhisperSpeechToTextClient(
         string modelId = "whisper-tiny.en",
         string? cacheDir = null,
-        string? language = null)
+        string? language = null,
+        bool useGpu = true)
     {
         _modelId = modelId;
         _cacheDir = cacheDir;
         _language = language;
+        _useGpu = useGpu;
     }
 
     /// <summary>
@@ -41,11 +45,12 @@ public class WhisperSpeechToTextClient : ISpeechToTextClient
     /// </summary>
     /// <param name="modelPath">Path to the GGML model file.</param>
     /// <param name="language">Optional language hint.</param>
+    /// <param name="useGpu">Whether to use GPU acceleration if available. Default: true.</param>
     /// <returns>A new client instance.</returns>
-    public static WhisperSpeechToTextClient FromModelPath(string modelPath, string? language = null)
+    public static WhisperSpeechToTextClient FromModelPath(string modelPath, string? language = null, bool useGpu = true)
     {
-        var client = new WhisperSpeechToTextClient("custom", language: language);
-        client._factory = WhisperFactory.FromPath(modelPath);
+        var client = new WhisperSpeechToTextClient("custom", language: language, useGpu: useGpu);
+        client._factory = WhisperFactory.FromPath(modelPath, new WhisperFactoryOptions { UseGpu = useGpu });
         return client;
     }
 
@@ -126,6 +131,12 @@ public class WhisperSpeechToTextClient : ISpeechToTextClient
         };
     }
 
+    /// <summary>
+    /// Gets runtime information about the loaded Whisper native library,
+    /// including supported features like AVX, CUDA, etc.
+    /// </summary>
+    public static string? GetRuntimeInfo() => WhisperFactory.GetRuntimeInfo();
+
     /// <inheritdoc />
     public object? GetService(Type serviceType, object? serviceKey = null)
     {
@@ -146,7 +157,7 @@ public class WhisperSpeechToTextClient : ISpeechToTextClient
 
             var modelPath = await WhisperModelManager.EnsureModelAsync(
                 _modelId, _cacheDir, cancellationToken);
-            _factory = WhisperFactory.FromPath(modelPath);
+            _factory = WhisperFactory.FromPath(modelPath, new WhisperFactoryOptions { UseGpu = _useGpu });
         }
         finally
         {

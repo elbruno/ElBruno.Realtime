@@ -67,6 +67,13 @@ else
 }
 Console.WriteLine($"   LLM:     Ollama phi4-mini (ensure 'ollama serve' is running)");
 Console.WriteLine($"   TTS:     Auto-downloaded by QwenTTS on first use");
+
+// Show Whisper runtime info (AVX, CUDA, etc.)
+var runtimeInfo = WhisperSpeechToTextClient.GetRuntimeInfo();
+if (!string.IsNullOrEmpty(runtimeInfo))
+{
+    Console.WriteLine($"   Runtime: {runtimeInfo}");
+}
 Console.WriteLine();
 
 // ── 2. Configure services ───────────────────────────────────────
@@ -90,7 +97,7 @@ var provider = services.BuildServiceProvider();
 var conversation = provider.GetRequiredService<IRealtimeConversationClient>();
 
 Log("✅ Pipeline initialized");
-Console.WriteLine("   STT:  Whisper tiny.en (auto-download on first use)");
+Console.WriteLine("   STT:  Whisper tiny.en (GPU enabled, auto-download on first use)");
 Console.WriteLine("   LLM:  Ollama phi4-mini (localhost:11434)");
 Console.WriteLine("   TTS:  QwenTTS");
 Console.WriteLine();
