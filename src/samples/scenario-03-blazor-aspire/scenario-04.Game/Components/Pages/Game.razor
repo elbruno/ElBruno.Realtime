@@ -4,6 +4,7 @@
 @implements IAsyncDisposable
 @inject IConfiguration Configuration
 @inject IJSRuntime JS
+@inject ILogger<Game> Logger
 
 <PageTitle>Game — PersonaPlex</PageTitle>
 
@@ -33,6 +34,9 @@
                         : "🎤 Voice Unsupported")
                 </span>
                 <span class="voice-last">Last: <strong>@lastVoiceCommand</strong></span>
+                <span class="hub-status @(IsHubConnected ? "connected" : "disconnected")">
+                    @(IsHubConnected ? "🟢 Hub" : "🔴 Hub")
+                </span>
             </div>
 
             @if (isGameOver)
@@ -110,12 +114,16 @@
     private static readonly string[] VoicePhrases = { "Voice power!", "Command received!", "Nice call!" };
     private static readonly string[] HitPhrases = { "Ouch!", "Watch out!", "Careful!" };
 
+    private bool IsHubConnected => hubConnection?.State == HubConnectionState.Connected;
+
     protected override async Task OnInitializedAsync()
     {
         var apiUrl = Configuration.GetConnectionString("api")
             ?? Configuration["Services:api:https:0"]
             ?? Configuration["Services:api:http:0"]
             ?? "https://localhost:5001";
+
+        Logger.LogInformation("Connecting to API at {ApiUrl}", apiUrl);
 
         hubConnection = new HubConnectionBuilder()
             .WithUrl($"{apiUrl}/hubs/game")
@@ -125,8 +133,23 @@
 
         hubConnection.On<string>("ReceiveFeedback", message => _ = SpeakAsync(message));
 
-        hubConnection.Closed += _ =>
+        hubConnection.Closed += exception =>
         {
+            Logger.LogWarning("SignalR connection closed: {Reason}", exception?.Message ?? "No reason");
+            InvokeAsync(StateHasChanged);
+            return Task.CompletedTask;
+        };
+
+        hubConnection.Reconnecting += exception =>
+        {
+            Logger.LogWarning("SignalR reconnecting: {Reason}", exception?.Message ?? "Unknown");
+            InvokeAsync(StateHasChanged);
+            return Task.CompletedTask;
+        };
+
+        hubConnection.Reconnected += connectionId =>
+        {
+            Logger.LogInformation("SignalR reconnected with connection ID: {ConnectionId}", connectionId);
             InvokeAsync(StateHasChanged);
             return Task.CompletedTask;
         };
@@ -134,10 +157,11 @@
         try
         {
             await hubConnection.StartAsync();
+            Logger.LogInformation("SignalR connected to {Hub}", $"{apiUrl}/hubs/game");
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore for now; game works without backend feedback.
+            Logger.LogError(ex, "Failed to connect to API at {ApiUrl}. Game will run without backend feedback.", apiUrl);
         }
     }
 
@@ -411,6 +435,19 @@
 
     .voice-last {
         opacity: 0.9;
+    }
+
+    .hub-status {
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .hub-status.connected {
+        color: #22c55e;
+    }
+
+    .hub-status.disconnected {
+        color: #f87171;
     }
 
     .voice-command-log {

@@ -5,6 +5,7 @@
 @implements IAsyncDisposable
 @inject IConfiguration Configuration
 @inject IJSRuntime JS
+@inject ILogger<Conversation> Logger
 
 <PageTitle>Conversation — PersonaPlex</PageTitle>
 
@@ -138,21 +139,32 @@
             ?? Configuration["Services:api:http:0"]
             ?? "https://localhost:5001";
 
+        Logger.LogInformation("Connecting to API at {ApiUrl}", apiUrl);
+
         hubConnection = new HubConnectionBuilder()
             .WithUrl($"{apiUrl}/hubs/conversation")
             .AddMessagePackProtocol()
             .WithAutomaticReconnect()
             .Build();
 
-        hubConnection.Closed += _ =>
+        hubConnection.Closed += exception =>
         {
+            Logger.LogWarning("SignalR connection closed: {Reason}", exception?.Message ?? "No reason");
             isConnected = false;
             InvokeAsync(StateHasChanged);
             return Task.CompletedTask;
         };
 
-        hubConnection.Reconnected += _ =>
+        hubConnection.Reconnecting += exception =>
         {
+            Logger.LogWarning("SignalR reconnecting: {Reason}", exception?.Message ?? "Unknown");
+            InvokeAsync(StateHasChanged);
+            return Task.CompletedTask;
+        };
+
+        hubConnection.Reconnected += connectionId =>
+        {
+            Logger.LogInformation("SignalR reconnected with connection ID: {ConnectionId}", connectionId);
             isConnected = true;
             InvokeAsync(StateHasChanged);
             return Task.CompletedTask;
@@ -162,9 +174,11 @@
         {
             await hubConnection.StartAsync();
             isConnected = true;
+            Logger.LogInformation("SignalR connected to {Hub}", $"{apiUrl}/hubs/conversation");
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "Failed to connect to API at {ApiUrl}", apiUrl);
             messages.Add(new ChatMessageDto
             {
                 Role = "system",
