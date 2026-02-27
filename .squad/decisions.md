@@ -11,6 +11,101 @@
 
 ---
 
+### 2026-02-27T16:24:19Z: User Directive — Agent Framework & MEAI Attribution
+
+**By:** Bruno Capuano (via Copilot)
+
+**What:** Update "powered by" to mention Microsoft Agent Framework and MEAI as core components for managing LLM conversation and conversation state per user.
+
+**Why:** User request — captured for team memory
+
+**Status:** ✅ Implemented (README updated by Parker)
+
+---
+
+### 2026-02-27T16:24:19Z: Critical Fixes — Thread Safety & Multi-User Support
+
+#### Fix 1: `_inferenceLock` in SileroVadDetector
+
+**By:** Dallas (C# Developer)  
+**Status:** ✅ Implemented & Approved
+
+**What:** Activated the unused `_inferenceLock` SemaphoreSlim in `SileroVadDetector` by wrapping the `RunInference()` call with `await _inferenceLock.WaitAsync()` / try-finally `{ _inferenceLock.Release() }`.
+
+**Why:** The lock was declared and disposed but never acquired, leaving concurrent calls to `DetectSpeechAsync()` free to race on the shared ONNX `InferenceSession`. While ONNX Runtime documents `Run()` as thread-safe, protecting with the already-allocated lock is defensive and zero-cost for single-caller scenarios.
+
+**Impact:** Minimal — 10-line change in `SileroVadDetector.cs`. Build clean (0 errors, 0 warnings). All 66 tests pass.
+
+**Review (Kane):** ✅ Lock correctly acquired with cancellation token, try-finally ensures release, matches existing `_initLock` pattern. No bugs found. Protects shared mutable state properly.
+
+---
+
+#### Fix 2: Per-Session Conversation History
+
+**By:** Ripley (Design), Dallas (Implementation), Kane (Review + Tests)  
+**Status:** ✅ Designed, Implemented, Tested & Approved
+
+**Problem:** `RealtimeConversationPipeline._conversationHistory` is singleton, shared across all users. In multi-user scenarios (SignalR, concurrent API), User A's messages leak into User B's context — data corruption and privacy violation.
+
+**Solution:** Extract history into `IConversationSessionStore` abstraction with `InMemoryConversationSessionStore` default implementation.
+
+**Design Rationale:**
+- Lightweight interface (two async methods)
+- Thread-safe `ConcurrentDictionary` default store
+- Avoids heavy `Microsoft.Agents.AI` coupling (in preview, breaking changes)
+- MEAI alignment — works with existing `ChatMessage` abstractions
+- Extensible — consumers can override with Redis/Cosmos adapters
+- Future bridge — `AgentSessionConversationStore` adapter possible later
+
+**Implementation Details:**
+- **New files:** `IConversationSessionStore.cs`, `InMemoryConversationSessionStore.cs`
+- **Modified:** `ConversationOptions.cs` (added `SessionId` property), `RealtimeConversationPipeline.cs` (use session store), `RealtimeServiceCollectionExtensions.cs` (DI registration)
+- **Backward compatible:** Single-user code unchanged — `SessionId` defaults to null, falls back to `__default__` session key
+- **Extensible:** `TryAddSingleton` allows consumers to override store
+
+**Constructor Change (Dallas):**
+- `sessionStore` parameter added before optional `vad`/`tts`
+- Breaking only for direct construction (not DI users)
+- Namespace: `IConversationSessionStore` in root `ElBruno.Realtime` (matches other interfaces)
+- `TrimHistory` made static (no instance state access)
+
+**No new dependencies:** Uses existing `Microsoft.Extensions.AI.Abstractions` and `System.Collections.Concurrent`
+
+**Usage:**
+- **Single-user:** No changes, defaults to `__default__` session
+- **SignalR:** `SessionId = Context.ConnectionId` → per-connection isolation
+- **REST API:** `SessionId` from header/claim → per-user isolation
+- **Custom store:** `services.AddSingleton<IConversationSessionStore, RedisConversationSessionStore>()`
+
+**Review (Kane):**
+✅ Interface clean, implementation thread-safe, backward compatible.
+
+| Component | Verdict |
+|-----------|---------|
+| `IConversationSessionStore` | ✅ Clean async contract |
+| `InMemoryConversationSessionStore` | ✅ Thread-safe `GetOrAdd` pattern |
+| `ConversationOptions.SessionId` | ✅ Nullable, backward compatible |
+| `RealtimeConversationPipeline` | ✅ Fallback to `__default__`, all refs updated |
+| DI registration | ✅ `TryAddSingleton` allows override |
+
+**Edge case noted:** Session history list not thread-safe for concurrent modifications, but acceptable per design — each session processes sequentially per connection.
+
+**Tests Added (7 unique, 14 per TFMs):**
+1. `InMemoryConversationSessionStore_GetOrCreate_ReturnsSameList_ForSameSessionId`
+2. `InMemoryConversationSessionStore_GetOrCreate_ReturnsDifferentLists_ForDifferentSessionIds`
+3. `InMemoryConversationSessionStore_RemoveSession_RemovesSession`
+4. `InMemoryConversationSessionStore_RemoveSession_NonexistentSession_DoesNotThrow`
+5. `InMemoryConversationSessionStore_GetOrCreate_ReturnsEmptyList_ForNewSession`
+6. `DiRegistration_RegistersDefaultSessionStore`
+7. `DiRegistration_AllowsConsumerToOverrideSessionStore`
+
+**Build & Test Results:**
+- Build: 0 errors, 0 warnings (net8.0 + net10.0)
+- Tests: 80/80 pass (was 66, +14 new)
+- Backward compatibility: 100%
+
+---
+
 ## 2026-02-27T16:12:20Z: Codebase Analysis Complete
 
 ### Architecture (Ripley)

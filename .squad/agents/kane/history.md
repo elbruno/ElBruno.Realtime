@@ -36,3 +36,18 @@
 - No input validation on audio format (arbitrary bytes accepted as PCM16).
 - QwenTTS uses `Path.GetTempPath()` with GUID for temp files — safe pattern.
 - `_inferenceLock` SemaphoreSlim declared in SileroVadDetector but never actually used in RunInference — potential thread safety bug.
+
+### 2026-02-27: Review of Critical Fixes (InferenceLock + Per-Session History)
+
+**Reviewed two fixes, both approved:**
+
+1. **`_inferenceLock` fix in SileroVadDetector** — Lock now properly acquired around `RunInference()` with try-finally at lines 90–99. CancellationToken passed to WaitAsync. No bugs found.
+
+2. **Per-session conversation history** — New `IConversationSessionStore` interface + `InMemoryConversationSessionStore` (ConcurrentDictionary-backed). Pipeline uses `DefaultSessionId ("__default__")` when `ConversationOptions.SessionId` is null for backward compatibility. DI uses `TryAddSingleton` so consumers can override.
+
+**Tests added:** 7 new tests (80 total across 2 TFMs, all passing):
+- 5 tests for `InMemoryConversationSessionStore` (same-ID identity, different-ID isolation, remove, remove-nonexistent, new-session-empty)
+- 2 DI tests (default store registration, consumer override via TryAddSingleton)
+- 1 assertion added to existing `ConversationOptions_DefaultValues` test for `SessionId`
+
+**Design note:** The `List<ChatMessage>` returned by the store is not itself thread-safe, but this is acceptable since the pipeline processes one turn at a time per session. If concurrent session access becomes a requirement, the store should return a synchronized collection.

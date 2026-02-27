@@ -10,6 +10,16 @@
 
 <!-- Append learnings below. Format: ### YYYY-MM-DD: Topic\nWhat was learned. -->
 
+### 2026-02-27: Per-Session Conversation History Design
+
+**Problem:** `RealtimeConversationPipeline._conversationHistory` is a singleton-scoped `List<ChatMessage>` — corrupts in multi-user scenarios (SignalR, concurrent API).
+
+**Decision:** Introduced `IConversationSessionStore` abstraction with `InMemoryConversationSessionStore` default. Session ID flows through `ConversationOptions.SessionId`. Avoids taking a dependency on the full `Microsoft.Agents.AI` package (too heavy, preview churn), but the interface is shaped for a future Agent Framework adapter. No new NuGet packages needed — uses existing `ConcurrentDictionary` + `List<ChatMessage>` from M.E.AI.Abstractions.
+
+**Key insight:** The Microsoft Agent Framework's `AgentSession` is conceptually right (per-session state with serialize/deserialize), but pulling in `Microsoft.Agents.AI` for just session management would be over-engineering. A thin `IConversationSessionStore` with `GetOrCreateSessionAsync(sessionId)` achieves the same goal with zero new dependencies. The store is registered via `TryAddSingleton` so consumers can swap in Redis/Cosmos/AgentSession adapters without changing core library code.
+
+**Design doc:** `.squad/decisions/inbox/ripley-agentsession-design.md`
+
 ### 2026-02-27: Full Architecture Review — Baseline Assessment
 
 **Solution structure (7 projects):**

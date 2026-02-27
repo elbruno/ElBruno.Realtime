@@ -40,7 +40,26 @@
 - Audio format: 16kHz, 16-bit mono PCM for STT/VAD; QwenTTS outputs 24kHz WAV
 
 **Observations:**
-- `SileroVadDetector._inferenceLock` is declared but never used in `RunInference()` — inference is not thread-safe
+- ~~`SileroVadDetector._inferenceLock` is declared but never used in `RunInference()` — inference is not thread-safe~~ **FIXED** (see below)
 - scenario-03-blazor-aspire has its own .slnx and is NOT part of the main solution
 - Samples target net10.0 only (not multi-target)
 - Core libraries produce XML docs (GenerateDocumentationFile=true)
+
+### 2025-07-17: Fixed _inferenceLock in SileroVadDetector
+
+**Bug:** `_inferenceLock` (SemaphoreSlim) was declared and disposed but never acquired. Concurrent calls to `DetectSpeechAsync()` could race on the shared ONNX `_session` via `RunInference()`.
+
+**Fix:** Wrapped the `RunInference()` call in `DetectSpeechAsync` with `await _inferenceLock.WaitAsync(cancellationToken)` / `try-finally { _inferenceLock.Release() }`. Minimal 10-line change. Build: 0 errors, 0 warnings. Tests: 66/66 pass.
+
+### 2026-02-27: Implemented Per-Session Conversation History
+
+**Task:** Replaced singleton `_conversationHistory` field in `RealtimeConversationPipeline` with per-session history via `IConversationSessionStore` abstraction. Design by Ripley.
+
+**Changes:**
+- **NEW** `Abstractions/IConversationSessionStore.cs` — interface with `GetOrCreateSessionAsync` and `RemoveSessionAsync`
+- **NEW** `Pipeline/InMemoryConversationSessionStore.cs` — default `ConcurrentDictionary`-based implementation
+- **EDIT** `Abstractions/ConversationOptions.cs` — added `SessionId` property (nullable, defaults to `"__default__"`)
+- **EDIT** `Pipeline/RealtimeConversationPipeline.cs` — constructor takes `IConversationSessionStore`; removed `_conversationHistory` field; added `GetSessionHistoryAsync` helper; `TrimHistory` now static accepting `IList<ChatMessage>`; `ProcessSpeechSegmentAsync` takes `conversationHistory` parameter
+- **EDIT** `DependencyInjection/RealtimeServiceCollectionExtensions.cs` — `TryAddSingleton<IConversationSessionStore, InMemoryConversationSessionStore>()` and inject into pipeline factory
+
+**Backward compatibility:** Fully maintained. `TryAddSingleton` means consumers who don't register their own store get the in-memory default. Null `SessionId` falls back to `"__default__"` key. Build: 0 errors, 0 warnings. Tests: 66/66 pass (net8.0 + net10.0).

@@ -1,9 +1,11 @@
 ---
-updated_at: 2026-02-27T16:08:29Z
-focus_area: Team initialization
+updated_at: 2026-02-27T16:24:19Z
+focus_area: Critical fixes completed, tests passing
 active_issues: []
 ---
 
 # What We're Focused On
 
-Team hired. Ready for first task. Future work items from INSTRUCTIONS.md include: server-side TTS streaming, full-duplex barge-in, browser integration, additional STT/TTS providers, CI/CD build+test workflow, performance profiling.
+Critical production blockers fixed: thread-safety in SileroVadDetector, multi-user conversation isolation via per-session store. 80/80 tests passing (14 new). Both fixes approved by Kane. README updated with Agent Framework + MEAI attribution. Ready for merge.
+
+**Remaining backlog from analysis:** QwenTTS streaming, integration tests, Blazor integration, error handling, sample naming, audio helpers (design tasks, not code).
