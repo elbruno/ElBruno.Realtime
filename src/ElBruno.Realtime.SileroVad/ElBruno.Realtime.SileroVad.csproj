@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ElBruno.Realtime.SileroVad</RootNamespace>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>ElBruno.Realtime.SileroVad</PackageId>
+    <Version>0.1.0-preview</Version>
+    <Authors>Bruno Capuano</Authors>
+    <Description>Silero VAD-based IVoiceActivityDetector implementation for ElBruno.Realtime. Provides local voice activity detection using Silero VAD v5 ONNX model with automatic download. Detects speech segments in continuous audio streams.</Description>
+    <PackageTags>vad;voice-activity-detection;silero;onnx;ai;local;realtime;speech</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/elbruno/ElBruno.Realtime</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/elbruno/ElBruno.Realtime</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon Condition="Exists('..\..\images\nuget_01.png')">nuget_01.png</PackageIcon>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ElBruno.Realtime\ElBruno.Realtime.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ElBruno.HuggingFace.Downloader" Version="0.5.0" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.24.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" Link="README.md" Condition="Exists('..\..\README.md')" />
+    <None Include="..\..\images\nuget_01.png" Pack="true" PackagePath="\" Link="nuget_01.png" Condition="Exists('..\..\images\nuget_01.png')" />
+  </ItemGroup>
+
+</Project>

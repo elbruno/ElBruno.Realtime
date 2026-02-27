@@ -1,0 +1,455 @@
+@page "/conversation"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.SignalR.Client
+@using Scenario04.Shared.Models
+@implements IAsyncDisposable
+@inject IConfiguration Configuration
+@inject IJSRuntime JS
+
+<PageTitle>Conversation — PersonaPlex</PageTitle>
+
+<div class="conversation-container">
+    <!-- Sidebar: settings -->
+    <aside class="settings-panel">
+        <h3>⚙️ Settings</h3>
+
+        <label>Persona prompt:</label>
+        <textarea @bind="personaPrompt" rows="3" placeholder="e.g. You are a pirate captain..."></textarea>
+
+        <label>Ollama model:</label>
+        <input @bind="ollamaModel" placeholder="phi4-mini" />
+
+        <label class="toggle-label">
+            <input type="checkbox" checked="@autoSpeak" @onchange="ToggleAutoSpeak" />
+            🔊 Auto-speak responses
+        </label>
+
+        <button class="btn-secondary" @onclick="ClearSession">🗑️ Clear history</button>
+
+        <div class="connection-status">
+            Status: <span class="@(isConnected ? "connected" : "disconnected")">
+                @(isConnected ? "🟢 Connected" : "🔴 Disconnected")
+            </span>
+        </div>
+    </aside>
+
+    <!-- Main chat area -->
+    <section class="chat-area">
+        <div class="messages" @ref="messagesContainer">
+            @foreach (var msg in messages)
+            {
+                <div class="message @msg.Role">
+                    <div class="message-role">@(msg.Role == "user" ? "You" : "AI")</div>
+                    <div class="message-content">@msg.Content</div>
+                    <div class="message-time">@msg.Timestamp.ToString("HH:mm:ss")</div>
+                </div>
+            }
+            @if (isStreaming)
+            {
+                <div class="message assistant streaming">
+                    <div class="message-role">AI</div>
+                    <div class="message-content">@currentStreamingText<span class="cursor">▊</span></div>
+                </div>
+            }
+        </div>
+
+        <!-- Speak Mode indicator -->
+        @if (isSpeakMode)
+        {
+            <div class="speak-mode-bar">
+                <span class="speak-mode-indicator @speakModeState">
+                    @switch (speakModeState)
+                    {
+                        case "listening":
+                            <text>🟢 Listening — speak naturally, I'll respond when you pause</text>
+                            break;
+                        case "speech-detected":
+                            <text>🎤 Hearing you...</text>
+                            break;
+                        case "processing":
+                            <text>⏳ Processing...</text>
+                            break;
+                        case "speaking":
+                            <text>🔊 Speaking — interrupt me anytime</text>
+                            break;
+                        default:
+                            <text>🟡 Starting mic...</text>
+                            break;
+                    }
+                </span>
+                <button class="btn-stop-speak" @onclick="StopSpeakMode" title="Exit Speak Mode">
+                    ⏹️ Stop
+                </button>
+            </div>
+        }
+
+        <!-- Input -->
+        <div class="input-area">
+            <input @bind="userInput"
+                   @bind:event="oninput"
+                   @onkeydown="HandleKeyDown"
+                   placeholder="@(isSpeakMode ? "🎤 Speak Mode active — just talk!" : "Type a message or use Speak Mode")"
+                   disabled="@(!isConnected || isStreaming || isSpeakMode)" />
+            @if (!isSpeakMode)
+            {
+                <button class="btn-mic @(isRecording ? "recording" : "")"
+                        @onclick="ToggleRecording"
+                        disabled="@(!isConnected || isStreaming)"
+                        title="@(isRecording ? "Stop listening" : "Push to talk")">
+                    @(isRecording ? "⏹️" : "🎤")
+                </button>
+            }
+            <button class="btn-speak-mode @(isSpeakMode ? "active" : "")"
+                    @onclick="ToggleSpeakMode"
+                    disabled="@(!isConnected || isStreaming)"
+                    title="@(isSpeakMode ? "Exit Speak Mode" : "Enter Speak Mode — hands-free conversation")">
+                @(isSpeakMode ? "🔴" : "🗣️")
+            </button>
+            <button @onclick="SendMessage" disabled="@(!isConnected || isStreaming || isSpeakMode || string.IsNullOrWhiteSpace(userInput))">
+                Send
+            </button>
+        </div>
+    </section>
+</div>
+
+@code {
+    private HubConnection? hubConnection;
+    private List<ChatMessageDto> messages = new();
+    private string userInput = string.Empty;
+    private string personaPrompt = string.Empty;
+    private string ollamaModel = "phi4-mini";
+    private string sessionId = Guid.NewGuid().ToString("N")[..8];
+    private string currentStreamingText = string.Empty;
+    private bool isStreaming;
+    private bool isConnected;
+    private bool isRecording;
+    private bool isSpeakMode;
+    private string speakModeState = "listening"; // listening, speech-detected, processing, speaking
+    private bool autoSpeak = true;
+    private bool voiceTriggered;
+    private ElementReference messagesContainer;
+    private DotNetObjectReference<Conversation>? dotNetRef;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Build SignalR connection to the API backend
+        var apiUrl = Configuration.GetConnectionString("api")
+            ?? Configuration["Services:api:https:0"]
+            ?? Configuration["Services:api:http:0"]
+            ?? "https://localhost:5001";
+
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl($"{apiUrl}/hubs/conversation")
+            .AddMessagePackProtocol()
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.Closed += _ =>
+        {
+            isConnected = false;
+            InvokeAsync(StateHasChanged);
+            return Task.CompletedTask;
+        };
+
+        hubConnection.Reconnected += _ =>
+        {
+            isConnected = true;
+            InvokeAsync(StateHasChanged);
+            return Task.CompletedTask;
+        };
+
+        try
+        {
+            await hubConnection.StartAsync();
+            isConnected = true;
+        }
+        catch (Exception ex)
+        {
+            messages.Add(new ChatMessageDto
+            {
+                Role = "system",
+                Content = $"Failed to connect to API: {ex.Message}. Make sure the API backend is running."
+            });
+        }
+    }
+
+    private async Task HandleKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey && !isStreaming && !string.IsNullOrWhiteSpace(userInput))
+        {
+            await SendMessage();
+        }
+    }
+
+    private async Task SendMessage()
+    {
+        if (hubConnection is null || !isConnected || string.IsNullOrWhiteSpace(userInput))
+            return;
+
+        var messageText = userInput.Trim();
+        userInput = string.Empty;
+
+        var isVoice = voiceTriggered;
+        voiceTriggered = false;
+
+        // Add user message to chat
+        messages.Add(new ChatMessageDto
+        {
+            Role = "user",
+            Content = isVoice ? $"🎤 {messageText}" : messageText
+        });
+
+        if (isSpeakMode)
+        {
+            speakModeState = "processing";
+        }
+        StateHasChanged();
+
+        // Stream the response
+        isStreaming = true;
+        currentStreamingText = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var persona = string.IsNullOrWhiteSpace(personaPrompt) ? null : personaPrompt;
+
+            await foreach (var token in hubConnection.StreamAsync<string>(
+                "SendMessage", sessionId, messageText, persona))
+            {
+                currentStreamingText += token;
+                StateHasChanged();
+            }
+
+            // Move streaming text to final messages
+            messages.Add(new ChatMessageDto
+            {
+                Role = "assistant",
+                Content = currentStreamingText
+            });
+
+            // Speak the response aloud if voice-triggered or in Speak Mode
+            if ((isVoice || isSpeakMode) && autoSpeak)
+            {
+                if (isSpeakMode)
+                {
+                    speakModeState = "speaking";
+                    StateHasChanged();
+                }
+                await JS.InvokeVoidAsync("voiceChat.speak", currentStreamingText);
+            }
+        }
+        catch (Exception ex)
+        {
+            messages.Add(new ChatMessageDto
+            {
+                Role = "system",
+                Content = $"Error: {ex.Message}"
+            });
+        }
+        finally
+        {
+            isStreaming = false;
+            currentStreamingText = string.Empty;
+            if (isSpeakMode)
+            {
+                speakModeState = "listening";
+            }
+            StateHasChanged();
+        }
+    }
+
+    private async Task ClearSession()
+    {
+        if (hubConnection is not null && isConnected)
+        {
+            await hubConnection.InvokeAsync("ClearSession", sessionId);
+        }
+
+        sessionId = Guid.NewGuid().ToString("N")[..8];
+        messages.Clear();
+        StateHasChanged();
+    }
+
+    // ── Push-to-talk (single utterance) ──────────────────────
+
+    private async Task ToggleRecording()
+    {
+        if (isRecording)
+        {
+            await StopRecording();
+        }
+        else
+        {
+            await StartRecording();
+        }
+    }
+
+    private async Task StartRecording()
+    {
+        dotNetRef ??= DotNetObjectReference.Create(this);
+        try
+        {
+            await JS.InvokeVoidAsync("voiceChat.start", dotNetRef);
+            isRecording = true;
+        }
+        catch (Exception ex)
+        {
+            messages.Add(new ChatMessageDto
+            {
+                Role = "system",
+                Content = $"Microphone error: {ex.Message}. Use Chrome or Edge for voice input."
+            });
+        }
+        StateHasChanged();
+    }
+
+    private async Task StopRecording()
+    {
+        await JS.InvokeVoidAsync("voiceChat.stop");
+        isRecording = false;
+        StateHasChanged();
+    }
+
+    // ── Speak Mode (always-on, hands-free) ───────────────────
+
+    private async Task ToggleSpeakMode()
+    {
+        if (isSpeakMode)
+        {
+            await StopSpeakMode();
+        }
+        else
+        {
+            await StartSpeakMode();
+        }
+    }
+
+    private async Task StartSpeakMode()
+    {
+        dotNetRef ??= DotNetObjectReference.Create(this);
+        try
+        {
+            // Stop push-to-talk if active
+            if (isRecording)
+            {
+                await StopRecording();
+            }
+
+            await JS.InvokeVoidAsync("voiceChat.startSpeakMode", dotNetRef);
+            isSpeakMode = true;
+            speakModeState = "listening";
+        }
+        catch (Exception ex)
+        {
+            messages.Add(new ChatMessageDto
+            {
+                Role = "system",
+                Content = $"Speak Mode error: {ex.Message}. Use Chrome or Edge."
+            });
+        }
+        StateHasChanged();
+    }
+
+    private async Task StopSpeakMode()
+    {
+        await JS.InvokeVoidAsync("voiceChat.stopSpeakMode");
+        isSpeakMode = false;
+        speakModeState = "listening";
+        userInput = string.Empty;
+        StateHasChanged();
+    }
+
+    // ── JS Interop callbacks ─────────────────────────────────
+
+    /// <summary>
+    /// Called from JS when listening state changes (mic on/off).
+    /// </summary>
+    [JSInvokable]
+    public void OnListeningStateChanged(bool listening)
+    {
+        if (isSpeakMode && listening && speakModeState != "processing" && speakModeState != "speaking")
+        {
+            speakModeState = "listening";
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Called from JS as the user is speaking — shows live transcription.
+    /// </summary>
+    [JSInvokable]
+    public void OnInterimSpeechResult(string transcript)
+    {
+        userInput = transcript;
+        if (isSpeakMode)
+        {
+            speakModeState = "speech-detected";
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Called from JS when speech recognition produces a final result (user paused).
+    /// In Speak Mode, automatically sends the message.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnFinalSpeechResult(string transcript)
+    {
+        userInput = transcript;
+        voiceTriggered = true;
+
+        if (!isSpeakMode)
+        {
+            isRecording = false;
+        }
+        StateHasChanged();
+
+        // Auto-send the transcribed message
+        await SendMessage();
+    }
+
+    /// <summary>
+    /// Called from JS when speech recognition encounters an error.
+    /// </summary>
+    [JSInvokable]
+    public void OnSpeechError(string errorMessage)
+    {
+        isRecording = false;
+        messages.Add(new ChatMessageDto
+        {
+            Role = "system",
+            Content = errorMessage
+        });
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Called from JS when push-to-talk speech recognition ends.
+    /// </summary>
+    [JSInvokable]
+    public void OnSpeechEnded()
+    {
+        isRecording = false;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ToggleAutoSpeak(ChangeEventArgs e)
+    {
+        autoSpeak = (bool)(e.Value ?? false);
+        await JS.InvokeVoidAsync("voiceChat.setAutoSpeak", autoSpeak);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (isSpeakMode)
+        {
+            try { await JS.InvokeVoidAsync("voiceChat.stopSpeakMode"); } catch { }
+        }
+        dotNetRef?.Dispose();
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}

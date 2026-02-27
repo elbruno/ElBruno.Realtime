@@ -1,0 +1,34 @@
+@page "/"
+
+<PageTitle>PersonaPlex Conversation</PageTitle>
+
+<h2>Welcome</h2>
+<p>Navigate to <a href="/conversation">Conversation</a> to start chatting with the AI.</p>
+
+<div class="info-card">
+    <h3>Architecture</h3>
+    <pre>
+    Browser (Blazor Server)
+        │ SignalR + MessagePack
+        ▼
+    API Backend (ASP.NET Core)
+        │ Microsoft.Extensions.AI
+        ├──────────────────────────────────┐
+        ▼                                  ▼
+    🗣️ NVIDIA PersonaPlex              🤖 Phi4-Mini (Ollama)
+        │ Audio Layer                      │ LLM Chat + Reasoning
+        │ Whisper STT + QwenTTS            │ Microsoft Agent Framework
+        ▼                                  ▼
+    Audio ◄──────────────────────────► Text
+        │
+        ▼
+    Response streamed back to browser
+    </pre>
+
+    <h3>Setup</h3>
+    <ol>
+        <li>Install <a href="https://ollama.com" target="_blank">Ollama</a></li>
+        <li>Pull a model: <code>ollama pull phi4-mini</code></li>
+        <li>Run the Aspire AppHost: <code>dotnet run --project scenario-04.AppHost</code></li>
+    </ol>
+</div>

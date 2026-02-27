@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ElBruno.Realtime/ElBruno.Realtime.csproj" />
+    <Project Path="src/ElBruno.Realtime.Whisper/ElBruno.Realtime.Whisper.csproj" />
+    <Project Path="src/ElBruno.Realtime.QwenTTS/ElBruno.Realtime.QwenTTS.csproj" />
+    <Project Path="src/ElBruno.Realtime.SileroVad/ElBruno.Realtime.SileroVad.csproj" />
+    <Project Path="src/ElBruno.Realtime.Tests/ElBruno.Realtime.Tests.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="src/samples/scenario-01-console/scenario-01-console.csproj" />
+    <Project Path="src/samples/scenario-02-api/scenario-02-api.csproj" />
+  </Folder>
+</Solution>
