@@ -203,3 +203,31 @@
 3. Add path traversal tests for both ModelManagers
 4. Fix or remove unused `_inferenceLock` in SileroVadDetector
 5. Add DI builder extension tests
+
+---
+
+## 2026-02-27T16:55:00Z: Game Architecture — Voice-Controlled Side-Scroller
+
+**By:** Ripley (Lead / Architect)
+
+**What:** Comprehensive architecture for voice-controlled side-scroller game in Blazor scenario-03 with three rendering approaches evaluated and Canvas selected as optimal.
+
+**Key Decisions:**
+1. **Rendering:** HTML5 Canvas via JS Interop (`game-engine.js`, ~250 lines) for 60 FPS performance
+   - Rejected: ASCII/text grid (low fidelity, ~15 FPS, poor demo)
+   - Rejected: CSS Grid + DOM (DOM thrashing, server round-trip latency)
+2. **Voice Feedback:** Two-tier architecture
+   - Tier 1: Browser `SpeechSynthesis` for instant phrases ("Nice jump!", "Got 'em!")
+   - Tier 2: LLM-generated encouragement via `IChatClient`/Ollama (~2-3s latency, non-blocking)
+3. **Voice Commands:** Client-side keyword spotting via `SpeechRecognition` (JS-side matching)
+   - NOT using full `ConverseAsync()` pipeline (1-2s latency vs 200ms needed for game input)
+4. **Integration:** Minimal footprint
+   - New `GameHub` SignalR hub alongside `ConversationHub`
+   - New `/game` page alongside `/conversation`
+   - No new Aspire projects; zero changes to AppHost
+
+**Implementation Plan:** 4 phases, 13 files (assign Lambert: game engine JS, Dallas: backend feedback)
+
+**Why:** Balances fidelity (Canvas), responsiveness (client-side commands), voice personality (LLM), and minimal architectural disruption.
+
+**Status:** PROPOSED — Awaiting Bruno's approval to proceed
