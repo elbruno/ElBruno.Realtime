@@ -16,7 +16,7 @@ This project is built on two core Microsoft frameworks for AI and conversation m
 - **[Microsoft.Extensions.AI (MEAI)](https://learn.microsoft.com/en-us/dotnet/ai/microsoft-extensions-ai)** — Provides unified abstractions for chat clients (`IChatClient`) and speech-to-text (`ISpeechToTextClient`), enabling pluggable LLM and STT providers throughout the pipeline.
 - **[Microsoft Agent Framework](https://learn.microsoft.com/en-us/ai/agents/)** — Manages conversation sessions, per-user state, and dialogue continuity, ensuring each user gets a consistent, stateful conversation experience.
 
-Together with industry-standard models (Whisper STT, QwenTTS, Silero VAD, ONNX Runtime), these frameworks provide a production-ready foundation for real-time voice applications.
+Together with industry-standard models (Whisper STT, Silero VAD, ONNX Runtime), these frameworks provide a production-ready foundation for real-time voice applications.
 
 ## Architecture
 
@@ -33,7 +33,7 @@ Together with industry-standard models (Whisper STT, QwenTTS, Silero VAD, ONNX R
     🤖 Any IChatClient ─── LLM Chat (Ollama / OpenAI / Azure)
         │ response text
         ▼
-    🗣️ QwenTTS ─── Text-to-Speech (~5.5 GB ONNX)
+    🗣️ Any TTS ─── Text-to-Speech (pluggable)
         │ WAV audio
         ▼
     Speaker (Audio Output)
@@ -60,7 +60,6 @@ All models download automatically on first use. The LLM is pluggable via `IChatC
 ```bash
 dotnet add package ElBruno.Realtime          # Core abstractions + pipeline
 dotnet add package ElBruno.Realtime.Whisper   # Local STT (Whisper.net)
-dotnet add package ElBruno.Realtime.QwenTTS   # Local TTS (QwenTTS)
 dotnet add package ElBruno.Realtime.SileroVad # Local VAD (Silero)
 ```
 
@@ -69,7 +68,6 @@ dotnet add package ElBruno.Realtime.SileroVad # Local VAD (Silero)
 ```csharp
 using ElBruno.Realtime;
 using ElBruno.Realtime.Whisper;
-using ElBruno.Realtime.QwenTTS;
 using ElBruno.Realtime.SileroVad;
 using Microsoft.Extensions.AI;
 
@@ -79,8 +77,8 @@ builder.Services.AddPersonaPlexRealtime(opts =>
     opts.DefaultSystemPrompt = "You are a helpful voice assistant.";
 })
 .UseWhisperStt("whisper-tiny.en")   // 75MB, or "whisper-base.en" for accuracy
-.UseQwenTts()                       // QwenTTS with multiple voice presets
 .UseSileroVad();                    // Voice activity detection
+// .UseYourTts()  — plug in any ITextToSpeechClient
 
 // 2. Register your LLM (any IChatClient provider)
 builder.Services.AddChatClient(new OllamaChatClient(
@@ -109,16 +107,15 @@ await foreach (var evt in conversation.ConverseAsync(microphoneStream))
 |---------|-------------|
 | [`ElBruno.Realtime`](https://www.nuget.org/packages/ElBruno.Realtime) | Core: `ITextToSpeechClient`, `IVoiceActivityDetector`, `IRealtimeConversationClient`, pipeline orchestration, DI |
 | [`ElBruno.Realtime.Whisper`](https://www.nuget.org/packages/ElBruno.Realtime.Whisper) | `ISpeechToTextClient` (M.E.AI) via Whisper.net — auto-downloads GGML models |
-| [`ElBruno.Realtime.QwenTTS`](https://www.nuget.org/packages/ElBruno.Realtime.QwenTTS) | `ITextToSpeechClient` via ElBruno.QwenTTS — multiple voice presets |
 | [`ElBruno.Realtime.SileroVad`](https://www.nuget.org/packages/ElBruno.Realtime.SileroVad) | `IVoiceActivityDetector` via Silero VAD v5 ONNX — configurable thresholds |
 
 ## Samples
 
 | Sample | Description |
 |--------|-------------|
-| [scenario-01-console](src/samples/scenario-01-console/) | Realtime console: Audio → STT → LLM → TTS pipeline |
-| [scenario-02-api](src/samples/scenario-02-api/) | ASP.NET Core API with SignalR streaming conversation |
-| [scenario-03-blazor-aspire](src/samples/scenario-03-blazor-aspire/) | Blazor + .NET Aspire multi-service app: dual frontends (voice chat + game) on shared API backend with Ollama |
+| [scenario-01-console](src/samples/scenario-01-console/) | Realtime console app |
+| [scenario-02-api](src/samples/scenario-02-api/) | ASP.NET Core API with SignalR |
+| [scenario-03-blazor-aspire](src/samples/scenario-03-blazor-aspire/) | Blazor + .NET Aspire with voice chat + voice-controlled side-scroller game |
 
 ### Run a Sample
 
@@ -141,7 +138,6 @@ All models are cached in `%LOCALAPPDATA%/ElBruno/PersonaPlex/` and shared across
 | Silero VAD v5 | ~2 MB | Voice activity detection | ✅ Yes |
 | Whisper tiny.en | ~75 MB | Speech-to-text (fast) | ✅ Yes |
 | Whisper base.en | ~142 MB | Speech-to-text (accurate) | ✅ Yes |
-| QwenTTS (Qwen3-TTS) | ~5.5 GB | Text-to-speech | ✅ Yes |
 | Phi4-Mini (Ollama) | ~2.7 GB | LLM chat | ❌ Manual: `ollama pull phi4-mini` |
 
 ## Documentation
