@@ -53,7 +53,8 @@ const player = {
     height: 48,
     vy: 0,
     onGround: true,
-    animFrame: 0
+    animFrame: 0,
+    jumpHeld: false
 };
 
 let obstacles = [];
@@ -144,6 +145,7 @@ export function resetGame() {
     player.vy = 0;
     player.onGround = true;
     player.animFrame = 0;
+    player.jumpHeld = false;
 
     obstacles = [];
     holes = [];
@@ -389,6 +391,9 @@ function attachInput() {
 
     window.addEventListener('keyup', (event) => {
         keysDown.delete(event.code);
+        if (event.code === 'Space' || event.code === 'ArrowUp') {
+            player.jumpHeld = false;
+        }
     });
 }
 
@@ -453,6 +458,11 @@ function update(delta) {
         enemyTimer = randomRange(1.8, 3.4) / Math.max(0.7, state.scrollSpeed / 2);
     }
 
+    // Variable jump: extra gravity when space released while ascending (gravity-cut)
+    if (!player.jumpHeld && player.vy < 0) {
+        player.vy += CONFIG.gravity * 2 * frame;
+    }
+
     player.vy += CONFIG.gravity * frame;
     player.y += player.vy * frame;
 
@@ -463,6 +473,7 @@ function update(delta) {
         player.y = groundY - player.height;
         player.vy = 0;
         player.onGround = true;
+        player.jumpHeld = false;
     } else if (overHole && player.y + player.height >= groundY) {
         player.onGround = false;
     }
@@ -826,10 +837,13 @@ function tryJump(isVoice) {
     }
     player.vy = CONFIG.jumpVelocity;
     player.onGround = false;
-    spawnParticles(player.x + player.width / 2, player.y + player.height, 8, COLORS.groundTop);
+    player.jumpHeld = true;
+    
     if (isVoice) {
         emitEvent('voice-jump', 'jump');
     }
+    
+    spawnParticles(player.x + player.width / 2, player.y + player.height, 8, COLORS.groundTop);
     return true;
 }
 
