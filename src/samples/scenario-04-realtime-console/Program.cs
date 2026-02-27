@@ -151,21 +151,77 @@ try
         try
         {
             var wavData = CreateWavData(audioData, sampleRate, bitsPerSample, channels);
-            using var audioStream = new MemoryStream(wavData);
-            
-            Log("🔄 Transcribing...");
-            var turn = await conversation.ProcessTurnAsync(audioStream, options, cts.Token);
 
-            Log($"📝 You said: {turn.UserText}");
-            Log($"🤖 AI replied: {turn.ResponseText}");
-            
-            if (turn.ResponseAudio is not null)
+            Log("🔄 Processing...");
+            var startTime = DateTime.UtcNow;
+            var fullResponseText = string.Empty;
+            var audioChunks = new List<byte[]>();
+
+            // Feed audio as a single-chunk async enumerable
+            async IAsyncEnumerable<byte[]> AudioSource()
             {
-                Log("🔊 Playing audio response...");
-                await PlayAudioAsync(turn.ResponseAudio, cts.Token);
+                yield return wavData;
+                await Task.CompletedTask;
             }
-            
-            Log($"⏱️  Total: {turn.ProcessingTime.TotalSeconds:F1}s");
+
+            await foreach (var evt in conversation.ConverseAsync(AudioSource(), options, cts.Token))
+            {
+                switch (evt.Kind)
+                {
+                    case ConversationEventKind.TranscriptionComplete:
+                        if (!string.IsNullOrWhiteSpace(evt.TranscribedText))
+                        {
+                            Log($"📝 You: {evt.TranscribedText}");
+                        }
+                        else
+                        {
+                            Log("(no speech recognized)");
+                        }
+                        break;
+
+                    case ConversationEventKind.ResponseStarted:
+                        var timestamp = DateTime.Now.ToString("[HH:mm:ss]");
+                        Console.Write($"{timestamp} 🤖 AI: ");
+                        break;
+
+                    case ConversationEventKind.ResponseTextChunk:
+                        if (evt.ResponseText is not null)
+                        {
+                            Console.Write(evt.ResponseText);
+                        }
+                        break;
+
+                    case ConversationEventKind.ResponseAudioChunk:
+                        if (evt.ResponseAudio is not null)
+                        {
+                            audioChunks.Add(evt.ResponseAudio);
+                        }
+                        break;
+
+                    case ConversationEventKind.ResponseComplete:
+                        Console.WriteLine(); // end the streaming line
+                        fullResponseText = evt.ResponseText ?? string.Empty;
+                        break;
+
+                    case ConversationEventKind.Error:
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Log($"❌ {evt.ErrorMessage}");
+                        Console.ResetColor();
+                        break;
+                }
+            }
+
+            // Play collected audio chunks
+            if (audioChunks.Count > 0)
+            {
+                Log("🔊 Playing response...");
+                var combinedAudio = CombineAudioChunks(audioChunks);
+                using var audioStream = new MemoryStream(combinedAudio);
+                await PlayAudioAsync(audioStream, cts.Token);
+            }
+
+            var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
+            Log($"⏱️  Total: {elapsed:F1}s");
             Console.WriteLine();
         }
         catch (HttpRequestException ex) when (ex.Message.Contains("Connection refused"))
@@ -379,4 +435,23 @@ static async Task PlayAudioAsync(Stream audioStream, CancellationToken cancellat
     {
         await Task.Delay(100, cancellationToken);
     }
+}
+
+/// <summary>
+/// Combines multiple audio byte arrays into a single contiguous array.
+/// </summary>
+static byte[] CombineAudioChunks(List<byte[]> chunks)
+{
+    var totalLength = 0;
+    foreach (var chunk in chunks)
+        totalLength += chunk.Length;
+
+    var combined = new byte[totalLength];
+    var offset = 0;
+    foreach (var chunk in chunks)
+    {
+        Buffer.BlockCopy(chunk, 0, combined, offset, chunk.Length);
+        offset += chunk.Length;
+    }
+    return combined;
 }
