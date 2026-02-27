@@ -55,3 +55,31 @@
 ### 2026-02-27: Game Implementation — Phase 1 Complete
 
 **Cross-agent note:** Lambert & Dallas completed game Phase 1. No new tests required at this stage (canvas/physics tested manually, backend integration via game sessions). Recommend game integration tests in Phase 2 if multiplayer sessions need concurrency validation.
+
+### 2026-02-27: Phase 5 — Aspire Restructure Verification (Game Project Split)
+
+**All 6 checks PASSED.** Dallas scaffolded `scenario-04.Game`, Lambert moved files, structure verified end-to-end.
+
+| # | Check | Result |
+|---|-------|--------|
+| 1 | Aspire solution build (`scenario-04-blazor-aspire.slnx`) | ✅ PASS — 0 errors, 0 warnings, all 6 projects built |
+| 2 | Main solution build (`ElBruno.Realtime.slnx`) | ✅ PASS — 0 errors, 0 warnings, no regression |
+| 3 | Test suite | ✅ PASS — 80/80 tests pass (net8.0 + net10.0) |
+| 4 | File presence | ✅ PASS — see details below |
+| 5 | AppHost verification | ✅ PASS — references Api, Web, Game; registers `api`, `web`, `game` |
+| 6 | Solution file | ✅ PASS — all 6 projects present (AppHost, ServiceDefaults, Api, Web, Game, Shared) |
+
+**File presence details (Check 4):**
+- `scenario-04.Web/Components/Pages/`: Conversation.razor ✅, Index.razor ✅ | Game.razor ❌ (absent, correct), game-engine.js ❌ (absent, correct)
+- `scenario-04.Web/wwwroot/js/`: audio-recorder.js ✅
+- `scenario-04.Game/Components/Pages/`: Game.razor ✅, Index.razor ✅ | Conversation.razor ❌ (absent, correct), audio-recorder.js ❌ (absent, correct)
+- `scenario-04.Game/wwwroot/js/`: game-engine.js ✅
+- `scenario-04.Api/Hubs/`: ConversationHub.cs ✅, GameHub.cs ✅
+- `scenario-04.Api/Services/`: ConversationService.cs ✅, GameFeedbackService.cs ✅
+
+**AppHost details (Check 5):**
+- `.csproj` has `<ProjectReference>` to Api, Web, and Game ✅
+- `Program.cs` registers `api`, `web`, and `game` via `AddProject<>()` ✅
+- Game project gets `WithReference(api).WaitFor(api).WithExternalHttpEndpoints()` ✅
+
+**Verdict:** Restructure is clean. Game concern fully separated from Web. No regressions in main solution or test suite.

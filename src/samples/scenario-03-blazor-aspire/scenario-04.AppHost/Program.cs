@@ -2,8 +2,9 @@
 // PersonaPlex Scenario 04 — Aspire AppHost
 // ──────────────────────────────────────────────────────────────────────────
 // Orchestrates:
-//   1. API Backend         – ASP.NET Core + SignalR + M.E.AI → Ollama
-//   2. Blazor Web Frontend – conversation UI
+//   1. API Backend          – ASP.NET Core + SignalR + M.E.AI → Ollama
+//   2. Blazor Web Frontend  – voice conversation UI
+//   3. Blazor Game Frontend – voice-controlled side-scroller
 //
 // PREREQUISITES:
 //   - Ollama must be installed and running locally (http://localhost:11434)
@@ -56,12 +57,23 @@ var api = builder.AddProject<Projects.scenario_04_Api>("api")
     .WithExternalHttpEndpoints();
 
 // ──────────────────────────────────────────────────────────────
-// 3. Blazor Web Frontend — conversation UI
+// Blazor Web Frontend — voice conversation UI
 // ──────────────────────────────────────────────────────────────
 // References the API backend for SignalR connection.
 // Aspire injects the API endpoint as a connection string.
 // ──────────────────────────────────────────────────────────────
 builder.AddProject<Projects.scenario_04_Web>("web")
+    .WithReference(api)
+    .WaitFor(api)
+    .WithExternalHttpEndpoints();
+
+// ──────────────────────────────────────────────────────────────
+// Blazor Game Frontend — voice-controlled side-scroller
+// ──────────────────────────────────────────────────────────────
+// References the API backend for GameHub SignalR connection.
+// Aspire injects the API endpoint as a connection string.
+// ──────────────────────────────────────────────────────────────
+builder.AddProject<Projects.scenario_04_Game>("game")
     .WithReference(api)
     .WaitFor(api)
     .WithExternalHttpEndpoints();

@@ -118,7 +118,7 @@ await foreach (var evt in conversation.ConverseAsync(microphoneStream))
 |--------|-------------|
 | [scenario-01-console](src/samples/scenario-01-console/) | Realtime console: Audio → STT → LLM → TTS pipeline |
 | [scenario-02-api](src/samples/scenario-02-api/) | ASP.NET Core API with SignalR streaming conversation |
-| [scenario-03-blazor-aspire](src/samples/scenario-03-blazor-aspire/) | Blazor + .NET Aspire full conversation app with server-side Whisper STT |
+| [scenario-03-blazor-aspire](src/samples/scenario-03-blazor-aspire/) | Blazor + .NET Aspire multi-service app: dual frontends (voice chat + game) on shared API backend with Ollama |
 
 ### Run a Sample
 

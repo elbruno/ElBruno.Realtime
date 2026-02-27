@@ -3,5 +3,6 @@
   <Project Path="scenario-04.ServiceDefaults/scenario-04.ServiceDefaults.csproj" />
   <Project Path="scenario-04.Api/scenario-04.Api.csproj" />
   <Project Path="scenario-04.Web/scenario-04.Web.csproj" />
+  <Project Path="scenario-04.Game/scenario-04.Game.csproj" />
   <Project Path="scenario-04.Shared/scenario-04.Shared.csproj" />
 </Solution>

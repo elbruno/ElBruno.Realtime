@@ -1,41 +1,56 @@
-# Scenario 04 — Blazor + Aspire + Ollama Conversation
+# Scenario 04 — Blazor + Aspire + Ollama Multi-Service Conversation
 
-A real-time conversation app that combines a **Blazor Server** frontend with an **Ollama-powered** AI backend, orchestrated by **.NET Aspire**.
+A real-time conversation app featuring **dual Blazor frontends** (voice chat + game) sharing a **single Aspire-managed API backend** with **Ollama-powered** AI, demonstrating microservice architecture with shared infrastructure.
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                  .NET Aspire AppHost                     │
-│         (Orchestration · Dashboard · Telemetry)          │
-└──┬──────────────────┬──────────────────┬────────────────┘
-   │                  │                  │
-   ▼                  ▼                  ▼
-┌──────────────┐  ┌───────────────┐  ┌──────────────┐
-│  Blazor Web  │  │   API Backend │  │    Ollama     │
-│  (Server)    │  │  (ASP.NET     │  │  (Container)  │
-│              │  │   Core)       │  │  phi4-mini    │
-│  Chat UI     │  │  SignalR Hub  │  │              │
-│  SignalR     │  │  M.E.AI       │  │  REST API    │
-│  Client      │  │  Streaming    │  │  :11434      │
-└──────┬───────┘  └──────┬────────┘  └──────┬───────┘
-       │                 │                  │
-       │  SignalR        │  OpenAI-compat   │
-       │  (streaming)    │  HTTP API        │
-       └────────────────►└─────────────────►┘
+┌──────────────────────────────────────────────────────────────────┐
+│                  .NET Aspire AppHost (scenario-04.AppHost)        │
+│         (Orchestration · Discovery · Dashboard · Telemetry)       │
+└──┬────────────────────┬──────────────────┬──────────────────┬────┘
+   │                    │                  │                  │
+   ▼                    ▼                  ▼                  ▼
+┌─────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────┐
+│  Web Svc    │  │  Game Svc    │  │  API Backend │  │  Ollama  │
+│  Blazor     │  │  Blazor      │  │ (ASP.NET     │  │Container │
+│  Server     │  │  Server      │  │  Core)       │  │phi4-mini │
+│             │  │              │  │              │  │          │
+│ Convers.    │  │ Game.razor + │  │ ConversHub   │  │REST API  │
+│ razor       │  │ game-engine  │  │ GameHub      │  │:11434    │
+│ (voice)     │  │ .js          │  │ M.E.AI       │  │          │
+└─────┬───────┘  └──────┬───────┘  └──────┬───────┘  └────┬─────┘
+      │                 │                 │              │
+      │ SignalR         │ SignalR         │ Ollama API   │
+      │ (discovery)     │ (discovery)     │ (OpenAI-compat)
+      └─────────────────┼─────────────────┤              │
+                        │                 │              │
+                        └────────────────►┴─────────────►┘
 ```
 
 ### Data Flow
 
 ```
-User types message
-    │
-    ▼
-Blazor (SignalR) ──► API Hub ──► M.E.AI ──► Ollama (phi4-mini)
-                                                │
-                                    streaming tokens
-                                                │
-User sees response ◄── Blazor ◄── SignalR ◄─────┘
+Voice Chat (Web):              Game Commands (Game):
+User speaks via mic            Player input (keyboard/mouse)
+    │                                │
+    ▼                                ▼
+Blazor Web (SignalR)  ┐      Blazor Game (SignalR)
+    └────────┬────────┴──────────────┬────────┘
+             ▼                       ▼
+        API Backend (scenario-04.Api)
+        - ConversationHub (voice)
+        - GameHub (game state)
+             │
+             ▼
+        Ollama (phi4-mini)
+             │
+    ┌────────┴────────┐
+    ▼                 ▼
+Response text      Game logic feedback
+    │                 │
+Blazor Web         Blazor Game
+streams audio      updates canvas
 ```
 
 ## Prerequisites
@@ -56,15 +71,16 @@ ollama pull phi4-mini
 # 3. From the repo root:
 cd src/samples/scenario-04-blazor-aspire
 
-# 4. Run the Aspire AppHost (starts API + Web):
+# 4. Run the Aspire AppHost (starts API + Web + Game):
 dotnet run --project scenario-04.AppHost
 ```
 
 ### What happens when you run it:
 
-1. **Aspire starts the API backend** — connects to Ollama at `http://localhost:11434`, exposes SignalR hub
-2. **Aspire starts the Blazor frontend** — connects to API via SignalR
-3. **Aspire Dashboard opens** — shows all services, logs, traces
+1. **Aspire starts the API backend** — connects to Ollama at `http://localhost:11434`, exposes ConversationHub + GameHub
+2. **Aspire starts the Web frontend** — voice chat UI, connects to API via SignalR
+3. **Aspire starts the Game frontend** — side-scroller game, connects to API via SignalR  
+4. **Aspire Dashboard opens** — shows all three services, logs, traces
 
 ### Using Docker-managed Ollama (optional)
 
@@ -72,12 +88,21 @@ If you prefer Aspire to manage Ollama via Docker instead of running it locally, 
 
 ## Using the App
 
-1. Open the **Blazor Web** endpoint from the Aspire dashboard (or the URL printed in console)
+### Web Frontend (Voice Chat)
+
+1. Open the **Web** service endpoint from the Aspire dashboard (or the URL printed in console)
 2. Navigate to `/conversation`
-3. Type a message and press Enter or click Send
+3. Type a message or use voice modes (see below)
 4. Watch the AI response stream in real-time, token by token
 
-### Features
+### Game Frontend (Side-Scroller)
+
+1. Open the **Game** service endpoint from the Aspire dashboard
+2. Navigate to `/game`
+3. Use keyboard/mouse controls to play
+4. Game logic is powered by the shared API backend
+
+### Features (Voice Chat)
 
 - **Streaming responses** — tokens appear as Ollama generates them
 - **Multi-turn conversation** — context is maintained across messages
@@ -191,18 +216,20 @@ Popular options:
 ## Project Structure
 
 ```
-scenario-04-blazor-aspire/
+scenario-03-blazor-aspire/
 ├── scenario-04.AppHost/           # Aspire orchestrator
-│   └── Program.cs                 # Ollama + API + Web wiring
+│   └── Program.cs                 # Ollama + API + Web + Game wiring
 ├── scenario-04.ServiceDefaults/   # Shared telemetry/health
 │   └── Extensions.cs
-├── scenario-04.Api/               # ASP.NET Core backend
+├── scenario-04.Api/               # ASP.NET Core shared backend
 │   ├── Program.cs                 # DI, SignalR, M.E.AI setup
 │   ├── Hubs/
-│   │   └── ConversationHub.cs     # SignalR hub (streaming)
+│   │   ├── ConversationHub.cs     # SignalR hub (voice chat)
+│   │   └── GameHub.cs             # SignalR hub (game state)
 │   └── Services/
-│       └── ConversationService.cs # Multi-turn chat with Ollama
-├── scenario-04.Web/               # Blazor Server frontend
+│       ├── ConversationService.cs # Multi-turn chat with Ollama
+│       └── GameService.cs         # Game logic with Ollama reasoning
+├── scenario-04.Web/               # Blazor Server voice chat frontend
 │   ├── Program.cs
 │   ├── Components/
 │   │   ├── App.razor
@@ -210,13 +237,26 @@ scenario-04-blazor-aspire/
 │   │   ├── Layout/MainLayout.razor
 │   │   └── Pages/
 │   │       ├── Index.razor        # Home page
-│   │       └── Conversation.razor # Chat UI
+│   │       └── Conversation.razor # Voice chat UI
 │   └── wwwroot/css/app.css
-└── scenario-04.Shared/            # Shared DTOs
+├── scenario-04.Game/              # Blazor Server game frontend (NEW)
+│   ├── Program.cs
+│   ├── Components/
+│   │   ├── App.razor
+│   │   ├── Routes.razor
+│   │   └── Pages/
+│   │       ├── Index.razor        # Home page
+│   │       └── Game.razor         # Game UI
+│   └── wwwroot/
+│       ├── css/app.css
+│       └── js/game-engine.js      # Game canvas & input handling
+└── scenario-04.Shared/            # Shared DTOs across all services
     └── Models/
         ├── AudioChunkDto.cs
         ├── ChatMessageDto.cs
-        └── ConversationStateDto.cs
+        ├── ConversationStateDto.cs
+        ├── GameStateDto.cs        # Game state (player position, enemies, etc.)
+        └── GameCommandDto.cs      # Game input (move, attack, etc.)
 ```
 
 ## Future: PersonaPlex Audio Integration
@@ -228,3 +268,4 @@ User speaks → Mimi Encoder → Ollama reasoning → Mimi Decoder → AI speaks
 ```
 
 The `ConversationHub.ProcessAudio()` method has a placeholder ready for this integration. See the [evaluation document](../../../docs/scenario-04-blazor-aspire-evaluation.md) for the full roadmap.
+
