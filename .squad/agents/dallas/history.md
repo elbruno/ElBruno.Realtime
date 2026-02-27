@@ -76,3 +76,21 @@
 - Shared `GameStateDto`, `GameEventDto`, `GameInputDto` for client-server type safety
 
 **Outcome:** ✅ Build clean (0 errors, 0 warnings, net8.0 + net10.0). Full integration with Lambert's Canvas game engine.
+
+### 2026-02-27: Migrated QwenTTS from Local Project to NuGet Package
+
+**Task:** Remove `ElBruno.Realtime.QwenTTS` local project and upgrade to `ElBruno.QwenTTS` v0.1.8-preview NuGet package.
+
+**Problem:** The local `ElBruno.Realtime.QwenTTS` project wrapped `ElBruno.QwenTTS` to provide `QwenTextToSpeechClient` (adapter to `ITextToSpeechClient`) and `UseQwenTts()` builder extension. The upstream NuGet v0.1.8-preview now includes `AddQwenTts()` which registers `ITtsPipeline` in DI, making the local wrapper redundant for pipeline creation — but the Realtime pipeline still needs `ITextToSpeechClient`, not `ITtsPipeline`.
+
+**Solution:**
+- Deleted `src/ElBruno.Realtime.QwenTTS/` entirely (project, adapter, builder extension)
+- Removed from `ElBruno.Realtime.slnx` and `.github/workflows/publish.yml` pack step
+- Each sample now references `ElBruno.QwenTTS` v0.1.8-preview directly as a PackageReference
+- Created `QwenTextToSpeechClientAdapter` in each sample — takes `ITtsPipeline` from DI (registered by `AddQwenTts()`), adapts to `ITextToSpeechClient`
+- Adapter is simpler than original: no lazy init lock (DI handles pipeline lifetime), no disposal of pipeline (DI-owned)
+- Updated `Program.cs` in both samples: `services.AddQwenTts()` + `services.AddSingleton<ITextToSpeechClient, QwenTextToSpeechClientAdapter>()`
+
+**Key Pattern:** `ITtsPipeline` → `ITextToSpeechClient` adapter pattern. If a future `ElBruno.Realtime.QwenTTS` NuGet is needed, this adapter could be extracted back into a library.
+
+**Build:** 0 errors, 0 warnings. **Tests:** 80/80 pass (net8.0 + net10.0).
