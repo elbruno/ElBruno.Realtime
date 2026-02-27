@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ElBruno.VibeVoiceTTS.Realtime</RootNamespace>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>ElBruno.VibeVoiceTTS.Realtime</PackageId>
+    <Version>0.1.0-preview</Version>
+    <Authors>Bruno Capuano</Authors>
+    <Description>Bridge between ElBruno.VibeVoiceTTS and ElBruno.Realtime — provides ITextToSpeechClient adapter and DI extensions for VibeVoiceTTS integration with the real-time conversation pipeline.</Description>
+    <PackageTags>vibevoice;tts;text-to-speech;realtime;ai;local;onnx;bridge</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/elbruno/ElBruno.Realtime</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/elbruno/ElBruno.Realtime</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon Condition="Exists('..\..\images\nuget_01.png')">nuget_01.png</PackageIcon>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591;MEAI001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ElBruno.Realtime\ElBruno.Realtime.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ElBruno.VibeVoiceTTS" Version="0.1.8" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" Link="README.md" Condition="Exists('..\..\README.md')" />
+    <None Include="..\..\images\nuget_01.png" Pack="true" PackagePath="\" Link="nuget_01.png" Condition="Exists('..\..\images\nuget_01.png')" />
+  </ItemGroup>
+
+</Project>

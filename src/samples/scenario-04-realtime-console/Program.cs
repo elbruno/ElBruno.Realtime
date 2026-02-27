@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ElBruno.Realtime;
 using ElBruno.Realtime.Whisper;
 using ElBruno.QwenTTS.Realtime;
+using ElBruno.VibeVoiceTTS.Realtime;
 using Scenario04RealtimeConsole;
 using static Scenario04RealtimeConsole.ConsoleHelper;
 
@@ -12,7 +13,7 @@ using static Scenario04RealtimeConsole.ConsoleHelper;
 // Captures audio from the default microphone, transcribes with
 // Whisper, sends to Ollama LLM, and speaks the response.
 //
-// Pipeline:  Microphone → Whisper STT → Ollama LLM → QwenTTS → Speakers
+// Pipeline:  Microphone → Whisper STT → Ollama LLM → TTS → Speakers
 //
 // Prerequisites:
 //   - Ollama running locally with phi4-mini:
@@ -40,6 +41,9 @@ Console.WriteLine();
 
 // ── 2. Select conversation mode ─────────────────────────────────
 var mode = SelectMode();
+
+// ── 2b. Select TTS engine ───────────────────────────────────────
+var ttsEngine = SelectTtsEngine();
 Console.WriteLine();
 
 // ── 3. Show model status ────────────────────────────────────────
@@ -61,7 +65,18 @@ else
     Console.WriteLine($"   Whisper: ⬇️ Will be downloaded on first use to {whisperModelPath} (~75 MB)");
 }
 Console.WriteLine("   LLM:     Ollama phi4-mini (ensure 'ollama serve' is running)");
-Console.WriteLine("   TTS:     Auto-downloaded by QwenTTS on first use");
+switch (ttsEngine)
+{
+    case TtsEngine.QwenTts:
+        Console.WriteLine("   TTS:     QwenTTS (auto-downloaded on first use)");
+        break;
+    case TtsEngine.VibeVoice:
+        Console.WriteLine("   TTS:     VibeVoice (auto-downloaded on first use, ~1.5GB)");
+        break;
+    case TtsEngine.None:
+        Console.WriteLine("   TTS:     Disabled (text-only responses)");
+        break;
+}
 
 var runtimeInfo = WhisperSpeechToTextClient.GetRuntimeInfo();
 if (!string.IsNullOrEmpty(runtimeInfo))
@@ -71,13 +86,29 @@ Console.WriteLine();
 // ── 4. Configure services ───────────────────────────────────────
 var services = new ServiceCollection();
 
-services.AddPersonaPlexRealtime(opts =>
+var realtimeBuilder = services.AddPersonaPlexRealtime(opts =>
 {
     opts.DefaultSystemPrompt = "You are a helpful assistant. Keep responses brief (1-2 sentences).";
     opts.DefaultLanguage = "en-US";
 })
-.UseWhisperStt("whisper-tiny.en")
-.UseQwenTts();
+.UseWhisperStt("whisper-tiny.en");
+
+// Register the selected TTS engine
+var ttsLabel = "None";
+switch (ttsEngine)
+{
+    case TtsEngine.QwenTts:
+        realtimeBuilder.UseQwenTts();
+        ttsLabel = "QwenTTS";
+        break;
+    case TtsEngine.VibeVoice:
+        realtimeBuilder.UseVibeVoiceTts();
+        ttsLabel = "VibeVoice";
+        break;
+    case TtsEngine.None:
+        // No TTS — pipeline will run without audio responses
+        break;
+}
 
 services.AddChatClient(new OllamaChatClient(
     new Uri("http://localhost:11434"), "phi4-mini"));
@@ -88,7 +119,7 @@ var conversation = provider.GetRequiredService<IRealtimeConversationClient>();
 Log("✅ Pipeline initialized");
 Console.WriteLine("   STT:  Whisper tiny.en (GPU enabled, auto-download on first use)");
 Console.WriteLine("   LLM:  Ollama phi4-mini (localhost:11434)");
-Console.WriteLine("   TTS:  QwenTTS");
+Console.WriteLine($"   TTS:  {ttsLabel}");
 Console.WriteLine();
 Log("Press Ctrl+C to exit.");
 Console.WriteLine();
