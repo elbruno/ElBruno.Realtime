@@ -103,3 +103,56 @@ Executed Ripley's architecture plan Phases 2 and 4:
 **Lambert's Phases 2 & 4 are finalized.** Game files moved, landing pages created, Web cleaned up. All builds clean per orchestration log 2026-02-27T17:42.
 
 **Cross-team:** Ripley designed, Dallas executed Phase 1 + Phase 3 (scaffold + AppHost), Kane running Phase 5 smoke test (background), Parker updating docs (background).
+
+### 2025-02-28: Radical Game Overhaul — 7 Visual & Gameplay Improvements
+
+Implemented comprehensive enhancements to the side-scroller game at Bruno's request. All 7 improvements delivered:
+
+**1. Scrolling Ground Markers:** Added visual grass tufts, pebbles, and dashes that scroll with world offset to show ground movement. Implemented `groundMarkers` array with 3 marker types (grass, pebble, dash) that regenerate as they scroll off-screen.
+
+**2. Reasonable Hole Sizes:** Reduced hole width from `randomRange(70, 130)` to `randomRange(50, 90)` for jumpable challenge. With jump velocity -12 and gravity 0.5, all holes are now clearable with proper timing.
+
+**3. Stomp Mechanic:** Implemented Mario-style enemy/obstacle stomping. When player falls onto top of enemy (vy > 0, collision from above), enemy is destroyed, player gets +25 points, small bounce (-8 vy), and particle explosion. For obstacles, player lands on top temporarily until it scrolls away.
+
+**4. Speak Final Score:** Added TTS call in `loseLife()` when lives reach 0: `speakText(\`Game over! Your final score is ${state.score} points.\`)`. Integrates with existing Web Speech Synthesis API.
+
+**5. Detailed Canvas Rendering:** Complete visual overhaul from colored rectangles to detailed pixel art:
+   - **Player:** Character with body, circular head, eyes, hat, animated legs (walking cycle), arms
+   - **Rocks:** Irregular polygon shapes with cracks, shading, texture lines
+   - **Enemies:** Body with eyes, pupils, spiky horns, bounce animation
+   - **Ground:** Grass strip on top (green), dirt layers below (brown), cross-section view
+   - **Sky:** Gradient from purple `#2c1654` to `#7c3c8c`, sun/moon, parallax clouds with multi-ellipse rendering
+   - **Projectiles:** Pulsing glowing orbs with shadow blur
+
+**6. Show Speech & Actions:** Added on-screen text display for voice commands and TTS speech:
+   - Speech bubble near player showing last TTS text (fades after 3s)
+   - Action text at top-center ("ACTION: JUMP", "ACTION: SHOOT") on voice command (fades after 2s)
+   - Voice command log in Game.razor showing last 5 commands with point values
+   - `showSpeechText()` and `showActionText()` functions with timers
+
+**7. Radical Aesthetic Redesign:** Complete theme overhaul to polished indie game:
+   - **Palette:** Sunset/twilight theme — purple/pink sky, vibrant player (#FF6B9D), enemies (#9D4EDD), golden projectiles (#FFD60A)
+   - **Particles:** Jump dust, shoot muzzle flash, enemy death explosions (15 particles), player hit burst
+   - **Floating Score Text:** +10, +25 score popups that rise and fade
+   - **Screen Shake:** On player hit (1.0 intensity, decays over time)
+   - **Game.razor CSS:** Dark gradient background, glowing borders, animated buttons with pulse, gradient cards, backdrop blur effects, game-over screen with slide-up animation
+   - **HUD:** Redesigned with glow effects, better borders, integrated look
+
+**Technical Details:**
+- All changes in 2 files: `game-engine.js` (620 → 820+ lines) and `Game.razor` (468 → 490+ lines)
+- Performance maintained at 60 FPS target with particle systems and gradients
+- All ES module exports intact for Blazor JS interop
+- All `dotNetRef` callbacks preserved: OnScoreChanged, OnLivesChanged, OnGameEvent, OnGameOver, OnVoiceStatusChanged, OnVoiceCommand, OnVoiceError
+- Build: ✅ 0 errors, 0 warnings
+
+**Key Patterns:**
+- **Particle System:** Array of objects with x, y, vx, vy, life, maxLife, alpha, color. Updated in game loop with gravity.
+- **Floating Text:** Similar to particles but rise upward, fade based on life/maxLife ratio
+- **Drawing Functions:** `drawPlayer()`, `drawRock()`, `drawEnemy()`, `drawProjectile()` for detailed rendering
+- **Clouds:** Parallax scrolling at 0.2x world speed, multi-ellipse composition, wrap-around regeneration
+- **Ground Markers:** Procedurally generated, 3 types, scroll with world, regenerate when < 50 on screen
+
+**File Paths:**
+- `src/samples/scenario-03-blazor-aspire/scenario-04.Game/wwwroot/js/game-engine.js`
+- `src/samples/scenario-03-blazor-aspire/scenario-04.Game/Components/Pages/Game.razor`
+

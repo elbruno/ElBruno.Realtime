@@ -39,10 +39,21 @@
             {
                 <div class="game-over">
                     <div class="game-over-card">
-                        <h3>Game Over</h3>
-                        <p>Final score: <strong>@score</strong></p>
-                        <button class="btn-primary" @onclick="RestartGame">Play Again</button>
+                        <h3>💀 Game Over</h3>
+                        <p class="final-score">Final score: <strong>@score</strong></p>
+                        <button class="btn-primary pulse" @onclick="RestartGame">🔄 Play Again</button>
                     </div>
+                </div>
+            }
+
+            @if (voiceCommandLog.Any())
+            {
+                <div class="voice-command-log">
+                    <div class="log-title">Voice Commands:</div>
+                    @foreach (var cmd in voiceCommandLog)
+                    {
+                        <div class="log-entry">@cmd</div>
+                    }
                 </div>
             }
         </div>
@@ -90,6 +101,7 @@
     private bool voiceEnabled;
     private bool voiceListening;
     private string lastVoiceCommand = "—";
+    private List<string> voiceCommandLog = new();
     private string voiceStatusMessage = "Voice commands ready.";
     private string voiceError = string.Empty;
 
@@ -183,6 +195,7 @@
         score = 0;
         lives = 3;
         lastVoiceCommand = "—";
+        voiceCommandLog.Clear();
     }
 
     private async Task ToggleVoice()
@@ -277,6 +290,8 @@
     public void OnVoiceCommand(string command)
     {
         lastVoiceCommand = command;
+        voiceCommandLog.Insert(0, $"{command.ToUpper()} (+50 pts)");
+        if (voiceCommandLog.Count > 5) voiceCommandLog.RemoveAt(voiceCommandLog.Count - 1);
         InvokeAsync(StateHasChanged);
     }
 
@@ -319,6 +334,8 @@
         gap: 1.5rem;
         padding: 1.5rem;
         color: #f8fafc;
+        background: linear-gradient(135deg, #1a0b2e 0%, #2c1654 100%);
+        min-height: 100vh;
     }
 
     .game-header {
@@ -326,6 +343,11 @@
         justify-content: space-between;
         align-items: center;
         gap: 1rem;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 1.5rem;
+        border-radius: 20px;
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 107, 157, 0.3);
     }
 
     .game-subtitle {
@@ -341,7 +363,7 @@
 
     .game-panel {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 280px;
+        grid-template-columns: minmax(0, 1fr) 300px;
         gap: 1.5rem;
         align-items: start;
     }
@@ -355,28 +377,32 @@
     #game-canvas {
         width: 100%;
         height: auto;
-        border: 2px solid #1f2937;
-        border-radius: 12px;
-        background: #87CEEB;
+        border: 3px solid #FF6B9D;
+        border-radius: 20px;
+        background: linear-gradient(to bottom, #2c1654, #7c3c8c);
         display: block;
+        box-shadow: 0 0 40px rgba(255, 107, 157, 0.4), 0 0 80px rgba(157, 78, 221, 0.2);
     }
 
     .hud {
         position: absolute;
-        top: 12px;
-        left: 12px;
+        top: 16px;
+        left: 16px;
         display: flex;
         gap: 1rem;
         align-items: center;
-        background: rgba(15, 23, 42, 0.7);
-        padding: 0.5rem 0.9rem;
+        background: rgba(15, 23, 42, 0.85);
+        padding: 0.75rem 1.2rem;
         border-radius: 999px;
-        font-size: 0.9rem;
-        backdrop-filter: blur(6px);
+        font-size: 0.95rem;
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 107, 157, 0.5);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     }
 
     .voice-status.listening {
         color: #22c55e;
+        animation: pulse 1.5s ease-in-out infinite;
     }
 
     .voice-status.idle {
@@ -387,22 +413,70 @@
         opacity: 0.9;
     }
 
+    .voice-command-log {
+        position: absolute;
+        top: 80px;
+        left: 16px;
+        background: rgba(15, 23, 42, 0.85);
+        padding: 0.75rem;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 209, 10, 0.4);
+        min-width: 200px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .log-title {
+        font-weight: bold;
+        color: #FFD60A;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    .log-entry {
+        font-size: 0.8rem;
+        color: #a5b4fc;
+        padding: 0.25rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .log-entry:last-child {
+        border-bottom: none;
+    }
+
     .game-over {
         position: absolute;
         inset: 0;
-        background: rgba(2, 6, 23, 0.75);
+        background: rgba(2, 6, 23, 0.85);
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 12px;
+        border-radius: 20px;
+        backdrop-filter: blur(8px);
+        animation: fadeIn 0.5s ease-out;
     }
 
     .game-over-card {
-        background: #0f172a;
-        border-radius: 16px;
-        padding: 2rem;
+        background: linear-gradient(135deg, #1a0b2e 0%, #3d2364 100%);
+        border-radius: 24px;
+        padding: 3rem 2.5rem;
         text-align: center;
-        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
+        border: 3px solid #FF6B9D;
+        animation: slideUp 0.5s ease-out;
+    }
+
+    .game-over-card h3 {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        color: #FF6B9D;
+        text-shadow: 0 0 20px rgba(255, 107, 157, 0.7);
+    }
+
+    .final-score {
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: #FFD60A;
     }
 
     .game-sidebar {
@@ -413,15 +487,28 @@
 
     .voice-panel,
     .instructions {
-        background: #0f172a;
-        border-radius: 16px;
-        padding: 1rem;
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.9) 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+        border: 2px solid rgba(157, 78, 221, 0.3);
+        backdrop-filter: blur(10px);
+    }
+
+    .voice-panel h3,
+    .instructions h3 {
+        color: #FF6B9D;
+        text-shadow: 0 0 10px rgba(255, 107, 157, 0.5);
+        margin-bottom: 1rem;
     }
 
     .voice-error {
         color: #f87171;
         margin-top: 0.5rem;
+        padding: 0.5rem;
+        background: rgba(248, 113, 113, 0.1);
+        border-radius: 8px;
+        border: 1px solid rgba(248, 113, 113, 0.3);
     }
 
     .instructions ul {
@@ -429,35 +516,96 @@
         margin: 0.5rem 0 0;
     }
 
+    .instructions li {
+        margin-bottom: 0.5rem;
+        color: #e2e8f0;
+    }
+
     .tips {
-        margin-top: 0.75rem;
+        margin-top: 1rem;
         font-size: 0.85rem;
         color: #a5b4fc;
+        padding: 0.75rem;
+        background: rgba(165, 180, 252, 0.1);
+        border-radius: 8px;
+        border-left: 3px solid #a5b4fc;
     }
 
     .btn-primary,
     .btn-secondary {
         border: none;
         border-radius: 999px;
-        padding: 0.5rem 1rem;
+        padding: 0.65rem 1.25rem;
         cursor: pointer;
-        font-weight: 600;
+        font-weight: 700;
+        transition: all 0.3s ease;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     .btn-primary {
-        background: #38bdf8;
-        color: #0f172a;
+        background: linear-gradient(135deg, #FF6B9D 0%, #9D4EDD 100%);
+        color: #fff;
+        box-shadow: 0 4px 15px rgba(255, 107, 157, 0.4);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(255, 107, 157, 0.6);
+    }
+
+    .btn-primary.pulse {
+        animation: pulse 2s ease-in-out infinite;
     }
 
     .btn-secondary {
-        background: #1e293b;
+        background: rgba(30, 41, 59, 0.8);
         color: #e2e8f0;
+        border: 2px solid rgba(157, 78, 221, 0.5);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+        background: rgba(157, 78, 221, 0.3);
+        border-color: #9D4EDD;
     }
 
     .btn-secondary:disabled,
     .btn-primary:disabled {
-        opacity: 0.5;
+        opacity: 0.4;
         cursor: not-allowed;
+        transform: none;
+    }
+
+    @@keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 0.8;
+            transform: scale(1.05);
+        }
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @@keyframes slideUp {
+        from {
+            transform: translateY(30px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
     }
 
     @@media (max-width: 980px) {
