@@ -157,3 +157,23 @@
 **Key Pattern:** Whisper model path is `Path.Combine(Environment.SpecialFolder.LocalApplicationData, "ElBruno", "PersonaPlex", "whisper-models", $"ggml-{modelId.Replace("whisper-", "")}.bin")` — matches `WhisperModelManager.DefaultCacheDir` logic exactly.
 
 **Build:** ✅ 0 errors, 0 warnings (net10.0).
+
+### 2026-02-27: Created ElBruno.QwenTTS.Realtime Bridge Package
+
+**Task:** Extract duplicated `QwenTextToSpeechClientAdapter` from scenario-01 and scenario-04 into a shared NuGet bridge package.
+
+**New project:** `src/ElBruno.QwenTTS.Realtime/` — 3 files:
+- `ElBruno.QwenTTS.Realtime.csproj` — multi-target net8.0+net10.0, refs ElBruno.QwenTTS 0.1.8-preview + ElBruno.Realtime (project ref)
+- `QwenTextToSpeechClientAdapter.cs` — public adapter: `ITtsPipeline` → `ITextToSpeechClient`
+- `QwenTtsRealtimeExtensions.cs` — `UseQwenTts()` builder extension + `AddQwenTtsRealtime()` IServiceCollection extension
+
+**Pattern:** Follows `ElBruno.Realtime.Whisper` packaging pattern exactly — same NuGet metadata structure, same builder extension pattern (`UseQwenTts()` mirrors `UseWhisperStt()`).
+
+**Sample updates:** Both scenario-01 and scenario-04 now use `.UseQwenTts()` on the builder chain instead of manual `AddQwenTts()` + `AddSingleton<ITextToSpeechClient, Adapter>()`. Removed local adapter files and direct `ElBruno.QwenTTS` package references (transitive through bridge).
+
+**Key paths:**
+- Bridge project: `src/ElBruno.QwenTTS.Realtime/`
+- Builder extension: `QwenTtsRealtimeExtensions.UseQwenTts(RealtimeBuilder)`
+- IServiceCollection extension: `QwenTtsRealtimeExtensions.AddQwenTtsRealtime(IServiceCollection)`
+
+**Build:** ✅ 0 errors, 0 warnings (net8.0 + net10.0). **Tests:** 80/80 pass.

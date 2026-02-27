@@ -47,6 +47,28 @@ var deviceNumber = 0;
 Console.WriteLine($"   Using device [{deviceNumber}]");
 Console.WriteLine();
 
+// ── 1b. Check model status ──────────────────────────────────────
+var whisperModelId = "whisper-tiny.en";
+var whisperFileName = $"ggml-{whisperModelId.Replace("whisper-", "")}.bin";
+var whisperModelDir = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+    "ElBruno", "PersonaPlex", "whisper-models");
+var whisperModelPath = Path.Combine(whisperModelDir, whisperFileName);
+
+Log("📂 Model locations:");
+if (File.Exists(whisperModelPath))
+{
+    var fileSize = new FileInfo(whisperModelPath).Length;
+    Console.WriteLine($"   Whisper: ✅ Found at {whisperModelPath} ({fileSize / (1024 * 1024)} MB)");
+}
+else
+{
+    Console.WriteLine($"   Whisper: ⬇️ Will be downloaded on first use to {whisperModelPath} (~75 MB)");
+}
+Console.WriteLine($"   LLM:     Ollama phi4-mini (ensure 'ollama serve' is running)");
+Console.WriteLine($"   TTS:     Auto-downloaded by QwenTTS on first use");
+Console.WriteLine();
+
 // ── 2. Configure services ───────────────────────────────────────
 var services = new ServiceCollection();
 
