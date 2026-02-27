@@ -308,3 +308,53 @@
 **Why:** Achieves 60 FPS responsiveness without server round-trip latency (200ms+ = unplayable). Web Speech API spotting (<200ms) matches game loop timings.
 
 **Implementation:** `game-engine.js` (~250 lines) + `Game.razor` + `NavMenu.razor` link. Build clean.
+
+---
+
+### 2026-02-27T17:42:00Z: Aspire Restructure — Split Web into Web + Game Frontends
+
+**By:** Ripley (Lead), Dallas (Backend), Lambert (Frontend)
+
+**What:** Restructured Aspire AppHost to split `scenario-04.Web` into two independent Blazor frontends:
+- **Web (Voice Chat):** Conversation.razor at `/conversation`
+- **Game (Side-Scroller):** Game.razor at `/game`
+- **API (Shared Backend):** ConversationHub + GameHub unchanged
+
+**Why:** Clean separation of concerns. Each frontend has its own landing page, routes, and static assets. Both connect to same API via Aspire service discovery.
+
+**Execution (Completed Phases 1–4):**
+1. Dallas: Created `scenario-04.Game` scaffold (csproj, Program.cs, Blazor boilerplate)
+2. Lambert: Moved Game.razor + game-engine.js + app.css from Web to Game
+3. Dallas: Updated AppHost + solution file to register 3 services
+4. Lambert: Created focused landing pages for each frontend
+
+**Result:** ✅ All 6 projects build clean (0 errors, 0 warnings). Files: 11 created, 2 moved, 4 modified.
+
+**Pending (Phases 5–6):** Kane smoke test, Parker README update (background agents).
+
+---
+
+### 2026-02-27T17:42:00Z: Game Scaffold Routes.razor — Omitted Pages Using (Ratified)
+
+**By:** Dallas (C# Developer)
+
+**What:** Omitted `@using Scenario04.Game.Components.Pages` from Routes.razor during Phase 1 scaffold.
+
+**Why:** Blazor Router discovers @page components via assembly scanning; explicit @using not required. Including it causes CS0234 until Lambert creates Pages directory in Phase 2.
+
+**Status:** ✅ Resolved — Pages directory created, game files moved. Build clean.
+
+---
+
+### 2026-02-27T17:42:00Z: Game Files Moved to scenario-04.Game (Completed)
+
+**By:** Lambert (Frontend Developer)
+
+**What:** Moved Game.razor, game-engine.js, app.css from scenario-04.Web to scenario-04.Game. Removed game nav link from Web. Created separate landing pages for each app.
+
+**Why:** Clean separation of concerns — Web is the voice-chat app, Game is the side-scroller app. Each project now has its own landing page, routes, and static assets.
+
+**Impact:** ✅ Completed
+- scenario-04.Web has NO game-related files
+- scenario-04.Game is fully self-contained
+- Build: 0 errors, 0 warnings across all 6 projects

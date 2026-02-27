@@ -10,6 +10,21 @@
 
 <!-- Append learnings below. Format: ### YYYY-MM-DD: Topic\nWhat was learned. -->
 
+### 2026-02-27: Aspire Restructure — Splitting Monolith Frontend into Two
+
+**Problem:** Single `scenario-04.Web` Blazor frontend serves both Conversation (voice chat) and Game (side-scroller) pages. Bruno requested splitting into two independent Blazor frontends, each registered separately in the Aspire AppHost, both connecting to the same shared API backend.
+
+**Decision:** Create `scenario-04.Game` as a new Blazor Server project. Move `Game.razor` + `game-engine.js` from Web → Game. API backend unchanged (already serves both hubs). Both frontends use Aspire service discovery (`WithReference(api)`) to find the API.
+
+**Key insights:**
+1. The API is the integration point — both frontends connect to different SignalR hubs on the same backend. No API changes needed.
+2. Shared project (`scenario-04.Shared`) already has DTOs for both frontends — no new models needed.
+3. Each frontend gets its own `wwwroot/css/app.css` copy (simpler than a shared CSS package for a sample).
+4. Aspire auto-generates `Projects.scenario_04_Game` class from the ProjectReference — just needs to be added to AppHost.csproj.
+5. Port separation (5190 for Web, 5191 for Game) in launchSettings.json avoids conflicts, though Aspire overrides ports at runtime.
+
+**Plan written to:** `.squad/decisions/inbox/ripley-aspire-restructure.md` — 6 phases, 4 agents (Dallas, Lambert, Kane, Parker).
+
 ### 2026-02-27: Game Architecture — Phase 1 Complete
 
 **Designed:** Voice-controlled side-scroller game architecture (Canvas rendering, two-tier feedback, minimal SignalR integration).
@@ -83,3 +98,23 @@
 **Aspire integration:** No new projects needed. Game adds a `/game` Blazor page + `GameHub` SignalR hub to existing projects. Aspire AppHost unchanged.
 
 **Plan written to:** session-state/plan.md — 4 implementation phases, 13 files to create/modify, assigned to Lambert (frontend) and Dallas (backend).
+
+### 2026-02-27: Aspire Restructure — Phases 1–4 COMPLETE
+
+**Outcome:** ✅ All phases 1–4 completed by Dallas + Lambert per architecture plan.
+
+**Dallas (Phases 1 & 3):**
+- Created `scenario-04.Game` scaffold: csproj, Program.cs, App.razor, Routes.razor, _Imports.razor, Layout files, Properties/launchSettings.json, appsettings.json (9 files)
+- Registered game frontend in AppHost + solution file (3 modified files)
+- Deviation: Omitted `@using Scenario04.Game.Components.Pages` from Routes.razor (Blazor doesn't require it; Pages directory created later by Lambert)
+
+**Lambert (Phases 2 & 4):**
+- Moved Game.razor + game-engine.js + app.css from scenario-04.Web → scenario-04.Game
+- Deleted game files from Web; removed Game link from Web's NavMenu
+- Created focused landing pages: Web at `/` for voice chat, Game at `/` for side-scroller
+
+**Build Result:** ✅ 0 errors, 0 warnings across all 6 projects. Files: 11 created, 2 moved, 4 modified.
+
+**Aspire Architecture:** 3 services now running (api, web, game), both frontends connect to same backend via `WithReference(api)`. Service discovery handles DNS resolution automatically.
+
+**Pending (Phases 5–6):** Kane smoke test (background) + Parker README update (background).

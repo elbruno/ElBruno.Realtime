@@ -94,3 +94,33 @@
 **Key Pattern:** `ITtsPipeline` → `ITextToSpeechClient` adapter pattern. If a future `ElBruno.Realtime.QwenTTS` NuGet is needed, this adapter could be extracted back into a library.
 
 **Build:** 0 errors, 0 warnings. **Tests:** 80/80 pass (net8.0 + net10.0).
+
+### 2026-02-27: Game Project Scaffold + AppHost Registration (Phase 1 + Phase 3)
+
+**Task:** Created `scenario-04.Game` Blazor Server project and registered it in the Aspire AppHost per Ripley's architecture plan (ripley-aspire-restructure.md).
+
+**Phase 1 — New files created (9 files):**
+- `scenario-04.Game.csproj` — Blazor Server, net10.0, RootNamespace `Scenario04.Game`, refs ServiceDefaults + Shared, SignalR packages 10.0.3
+- `Program.cs` — Identical to Web's Program.cs with `using Scenario04.Game.Components`
+- `Components/App.razor` — Standard Blazor App.razor without audio-recorder.js (game-engine.js loaded via ES module)
+- `Components/Routes.razor` — Standard Router with `Scenario04.Game.Components.Layout` using
+- `Components/_Imports.razor` — Standard imports with `Scenario04.Game` namespaces + `Scenario04.Shared.Models`
+- `Components/Layout/MainLayout.razor` — Game-themed header: "🎮 PersonaPlex Game"
+- `Components/Layout/NavMenu.razor` — Single link: "🎮 Game" pointing to /game
+- `Properties/launchSettings.json` — HTTP profile on port 5191 (Web is 5190)
+- `appsettings.json` — Standard logging config copied from Web
+
+**Phase 3 — Modified files (3 files):**
+- `scenario-04.AppHost.csproj` — Added `ProjectReference` to `scenario-04.Game.csproj`
+- `scenario-04.AppHost/Program.cs` — Added `game` frontend registration with `.WithReference(api).WaitFor(api).WithExternalHttpEndpoints()`. Updated header comments to list 3 services.
+- `scenario-04-blazor-aspire.slnx` — Added `scenario-04.Game/scenario-04.Game.csproj`
+
+**Deviation from plan:** Removed `@using Scenario04.Game.Components.Pages` from Routes.razor — the Pages directory doesn't exist until Lambert moves Game.razor in Phase 2. Blazor routing works via assembly scanning, not `@using` directives.
+
+**Build:** ✅ 0 errors, 0 warnings across all 8 projects (6 existing + 2 new: Game + AppHost rebuild).
+
+### 2026-02-27: Aspire Restructure Complete — Phases 1–3 Finalized
+
+**Dallas' roles in Phases 1 & 3 are finalized.** Game scaffold created, AppHost registered, solution file updated. All builds clean per orchestration log 2026-02-27T17:42.
+
+**Cross-team:** Ripley designed, Lambert executed Phase 2 + Phase 4 (file moves + landing pages), Kane running Phase 5 smoke test (background), Parker updating docs (background).

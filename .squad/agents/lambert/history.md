@@ -81,3 +81,25 @@ Re-verified the full scenario-03-blazor-aspire solution build. Result: **✅ Bui
 - `NavMenu.razor` — `/game` link present.
 
 **No issues found.** All game files are properly integrated, DI is wired, hub is mapped, and the solution compiles cleanly.
+
+### 2026-02-27: Phase 2 + Phase 4 — Game File Move & Landing Pages
+
+Executed Ripley's architecture plan Phases 2 and 4:
+
+**Phase 2 — Moved Game Files:**
+- Copied `Game.razor`, `game-engine.js`, `app.css` from `scenario-04.Web` → `scenario-04.Game`
+- Deleted `Game.razor` and `game-engine.js` from `scenario-04.Web`
+- Removed 🎮 Game link from Web's `NavMenu.razor` (now only has 💬 Conversation)
+- No namespace changes needed — `Game.razor` had no `@using Scenario04.Web` references
+
+**Phase 4 — Landing Pages:**
+- Updated `scenario-04.Web/Components/Pages/Index.razor` — voice-chat-focused landing with link to `/conversation` and features list (Speak Mode, Push-to-talk, Text chat, Auto-speak)
+- Created `scenario-04.Game/Components/Pages/Index.razor` — game-focused landing with link to `/game` and features list (Side-Scroller, Voice Control, Keyboard controls, Voice Feedback)
+
+**Build:** ✅ 0 errors, 0 warnings across all 6 projects (AppHost, Api, Web, Game, Shared, ServiceDefaults)
+
+### 2026-02-27: Aspire Restructure Complete — Phases 2 & 4 Finalized
+
+**Lambert's Phases 2 & 4 are finalized.** Game files moved, landing pages created, Web cleaned up. All builds clean per orchestration log 2026-02-27T17:42.
+
+**Cross-team:** Ripley designed, Dallas executed Phase 1 + Phase 3 (scaffold + AppHost), Kane running Phase 5 smoke test (background), Parker updating docs (background).
