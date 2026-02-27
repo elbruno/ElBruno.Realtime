@@ -10,7 +10,7 @@ public static class WhisperModelManager
 {
     private static readonly string DefaultCacheDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "ElBruno", "PersonaPlex", "whisper-models");
+        "ElBruno", "Realtime", "whisper-models");
 
     /// <summary>Known Whisper model mappings from friendly name to GgmlType.</summary>
     private static readonly Dictionary<string, GgmlType> ModelMap = new(StringComparer.OrdinalIgnoreCase)

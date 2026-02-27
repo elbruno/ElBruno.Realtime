@@ -47,7 +47,7 @@ All console output includes timestamps in `[HH:mm:ss]` format.
    Using device [0]
 
 [14:32:14] 📂 Model locations:
-   Whisper: ✅ Found at C:\Users\you\AppData\Local\ElBruno\PersonaPlex\whisper-models\ggml-tiny.en.bin (75 MB)
+   Whisper: ✅ Found at C:\Users\you\AppData\Local\ElBruno\Realtime\whisper-models\ggml-tiny.en.bin (75 MB)
    LLM:     Ollama phi4-mini (ensure 'ollama serve' is running)
    TTS:     Auto-downloaded by QwenTTS on first use
 

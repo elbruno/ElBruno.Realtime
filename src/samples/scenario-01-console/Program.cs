@@ -29,7 +29,7 @@ var whisperModelId = "whisper-tiny.en";
 var whisperFileName = $"ggml-{whisperModelId.Replace("whisper-", "")}.bin";
 var whisperModelDir = Path.Combine(
     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-    "ElBruno", "PersonaPlex", "whisper-models");
+    "ElBruno", "Realtime", "whisper-models");
 var whisperModelPath = Path.Combine(whisperModelDir, whisperFileName);
 
 Console.WriteLine("📂 Model locations:");

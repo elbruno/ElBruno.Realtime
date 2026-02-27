@@ -52,7 +52,7 @@ var whisperModelId = "whisper-tiny.en";
 var whisperFileName = $"ggml-{whisperModelId.Replace("whisper-", "")}.bin";
 var whisperModelDir = Path.Combine(
     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-    "ElBruno", "PersonaPlex", "whisper-models");
+    "ElBruno", "Realtime", "whisper-models");
 var whisperModelPath = Path.Combine(whisperModelDir, whisperFileName);
 
 Log("📂 Model locations:");
@@ -359,7 +359,7 @@ static async Task PlayAudioAsync(Stream audioStream, CancellationToken cancellat
 {
     audioStream.Position = 0;
     var audioBytes = new byte[audioStream.Length];
-    await audioStream.ReadAsync(audioBytes, cancellationToken);
+    _ = await audioStream.ReadAsync(audioBytes, cancellationToken);
     
     using var ms = new MemoryStream(audioBytes);
     using var reader = new WaveFileReader(ms);

@@ -102,8 +102,8 @@ All models are downloaded on first use and cached locally:
 
 | Model | Size | Cache Location |
 |-------|------|---------------|
-| Whisper tiny.en | ~75 MB | `%LOCALAPPDATA%/ElBruno/PersonaPlex/whisper-models/` |
-| Whisper base.en | ~142 MB | `%LOCALAPPDATA%/ElBruno/PersonaPlex/whisper-models/` |
-| Silero VAD v5 | ~2 MB | `%LOCALAPPDATA%/ElBruno/PersonaPlex/silero-vad/` |
+| Whisper tiny.en | ~75 MB | `%LOCALAPPDATA%/ElBruno/Realtime/whisper-models/` |
+| Whisper base.en | ~142 MB | `%LOCALAPPDATA%/ElBruno/Realtime/whisper-models/` |
+| Silero VAD v5 | ~2 MB | `%LOCALAPPDATA%/ElBruno/Realtime/silero-vad/` |
 | QwenTTS | ~5.5 GB | QwenTTS default location |
 | Ollama phi4-mini | ~2.7 GB | Ollama registry (manual `ollama pull`) |

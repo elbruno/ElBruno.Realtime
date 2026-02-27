@@ -38,7 +38,9 @@ public sealed class QwenTextToSpeechClientAdapter : ITextToSpeechClient
         ArgumentException.ThrowIfNullOrWhiteSpace(text);
 
         var voice = options?.VoiceId ?? _defaultVoice;
-        var language = options?.Language ?? _defaultLanguage;
+        // QwenTTS doesn't recognize culture codes like "en-US" — normalize to "auto"
+        var rawLang = options?.Language ?? _defaultLanguage;
+        var language = rawLang.Contains('-') ? "auto" : rawLang;
 
         var tempPath = Path.Combine(Path.GetTempPath(), $"qwentts_{Guid.NewGuid():N}.wav");
         try

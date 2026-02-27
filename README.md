@@ -132,7 +132,7 @@ dotnet run
 
 ## Auto-Downloaded Models
 
-All models are cached in `%LOCALAPPDATA%/ElBruno/PersonaPlex/` and shared across apps:
+All models are cached in `%LOCALAPPDATA%/ElBruno/Realtime/` and shared across apps:
 
 | Model | Size | Purpose | Auto-Download |
 |-------|------|---------|---------------|
