@@ -177,3 +177,40 @@
 - IServiceCollection extension: `QwenTtsRealtimeExtensions.AddQwenTtsRealtime(IServiceCollection)`
 
 **Build:** ✅ 0 errors, 0 warnings (net8.0 + net10.0). **Tests:** 80/80 pass.
+
+### 2026-02-28: Security Hardening & Performance Optimization (Issue #1, Phase 1)
+
+**Task:** Implemented security hardening and performance optimizations per Ripley's triage.
+
+**Changes:**
+
+1. **SessionId Input Validation** (`ConversationOptions.cs`):
+   - Added property setter validation with regex pattern `^[a-zA-Z0-9_-]+$`
+   - Max length: 256 characters
+   - Throws `ArgumentException` with clear messages for length/format violations
+   - Null/empty explicitly allowed (backward compatible)
+   - Prevents path traversal attacks via session identifiers
+
+2. **File Integrity Checks**:
+   - **WhisperModelManager.cs**: Size bounds validation (10KB - 2GB)
+   - **SileroModelManager.cs**: Size bounds validation (100KB - 50MB)
+   - Throws `InvalidOperationException` with formatted message if out of bounds
+   - Deletes corrupted file before throwing
+   - Catches corrupted downloads, prevents ONNX/GGML runtime crashes
+
+3. **TensorPrimitives Optimization** (`SileroVadDetector.cs` line ~206):
+   - Added `System.Numerics.Tensors` v9.0.0 NuGet package
+   - Replaced manual audio normalization loop with `TensorPrimitives.Divide()`
+   - SIMD acceleration (AVX2/AVX-512 on x86, NEON on ARM)
+   - Expected 2-10x speedup for 512-sample VAD windows
+   - Zero allocation overhead (in-place operation)
+
+**Findings:**
+- **Current validation patterns:** Path traversal guards already exist in model managers (`Path.GetFullPath()` + `StartsWith()`). SessionId and model size validation were gaps.
+- **TensorPrimitives integration:** Seamless with ONNX Runtime. No compatibility issues. All 80 tests pass.
+- **File size bounds:** Conservative (Whisper 2GB vs 1.5GB observed, Silero 50MB vs 1.8MB observed) to future-proof without code changes.
+- **Known limitations:** Relies on external downloaders for HTTPS enforcement. Does not validate ONNX/GGML format (parser does this at load time).
+
+**Build:** ✅ 0 errors, 0 warnings (net8.0 + net10.0, Release). **Tests:** ✅ 80/80 pass (no regressions).
+
+**Documented in:** `.squad/decisions/inbox/dallas-security-perf.md` — detailed implementation notes, rationale, limitations, and next steps.

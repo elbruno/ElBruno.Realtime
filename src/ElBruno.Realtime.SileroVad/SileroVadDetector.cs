@@ -1,5 +1,6 @@
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
+using System.Numerics.Tensors;
 using System.Runtime.CompilerServices;
 
 namespace ElBruno.Realtime.SileroVad;
@@ -206,8 +207,10 @@ public class SileroVadDetector : IVoiceActivityDetector
         for (int i = 0; i < floats.Length; i++)
         {
             short sample = (short)(pcm16[i * 2] | (pcm16[i * 2 + 1] << 8));
-            floats[i] = sample / 32768f;
+            floats[i] = sample;
         }
+        // Normalize using SIMD-optimized TensorPrimitives
+        TensorPrimitives.Divide(floats, 32768f, floats);
         return floats;
     }
 
