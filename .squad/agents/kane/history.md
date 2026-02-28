@@ -83,3 +83,80 @@
 - Game project gets `WithReference(api).WaitFor(api).WithExternalHttpEndpoints()` ✅
 
 **Verdict:** Restructure is clean. Game concern fully separated from Web. No regressions in main solution or test suite.
+
+---
+
+### 2026-02-28: Issue #1 Phase 1 — Benchmarks & Security Tests (Tasks 1.3, 2.1)
+
+**Deliverables completed:**
+
+1. **Benchmark Project (Task 2.1)** — ✅ Created `src/ElBruno.Realtime.Benchmarks/`
+   - BenchmarkDotNet project with 3 benchmark classes
+   - VAD options benchmarks (configuration overhead)
+   - STT options benchmarks (placeholder)
+   - Pipeline/session store benchmarks (multi-user scalability)
+   - Added to solution file, compiles clean
+   - Intentionally simplified to avoid model downloads (unsuitable for CI)
+
+2. **Security Tests (Task 1.3)** — ✅ Created `ModelManagerSecurityTests.cs`
+   - 6 new tests (92 total: 46 × 2 TFMs)
+   - All tests pass: 92/92 ✅
+   - Documents current path handling behavior
+
+**🔴 CRITICAL SECURITY GAP DISCOVERED:**
+
+**Issue:** Path traversal via `cacheDir` parameter in both ModelManagers
+
+**Root cause:** `Path.GetFullPath(cacheDir)` resolves relative paths like `..` to absolute paths that may escape intended boundaries. Current validation only checks final model path (with whitelisted filename) is within `targetDir`, but does NOT validate `targetDir` itself is within safe boundaries.
+
+**Example attack:**
+```csharp
+await WhisperModelManager.EnsureModelAsync(
+    modelId: "whisper-tiny.en",
+    cacheDir: "../../../etc");  // Resolves to /etc or C:\etc
+// Result: Writes model to /etc/ggml-tiny.en.bin
+```
+
+**Impact:** MEDIUM-HIGH
+- Attacker can write files to arbitrary directories if they control `cacheDir` parameter
+- Exploitation requires control of app config or DI setup (LOW likelihood)
+- Affects both WhisperModelManager and SileroModelManager
+
+**Tests document current behavior:**
+- `WhisperModelManager_AllowsRelativePathWithDotDot` — ✅ PASS (no exception thrown)
+- `SileroModelManager_AllowsRelativePathWithDotDot` — ✅ PASS (no exception thrown)
+
+**Recommendation:** Add boundary validation after `Path.GetFullPath(cacheDir)` to ensure resolved path is within `LocalApplicationData` or a user-specified safe root. Tracked for Dallas (Task 1.1).
+
+**Defense-in-depth status:**
+- ✅ Model ID injection protected (whitelisting)
+- ✅ Filename injection protected (fixed filenames in Silero)
+- ✅ Path traversal in model filename protected (lines 48-51 Whisper, 30-33 Silero)
+- ❌ cacheDir boundary escape NOT protected
+- ❌ UNC path injection NOT protected
+- ❌ Drive letter switching NOT protected
+
+**Benchmark baseline expectations:**
+- VadOptions creation: < 1 μs, 0 allocations
+- Session store GetOrCreate: < 1 ms
+- Concurrent session access (10x): 1-5 ms
+- (Full VAD/STT benchmarks require manual execution with pre-downloaded models)
+
+**Build & test verification:**
+- Build: ✅ 0 errors, 0 warnings (10 projects)
+- Tests: ✅ 92/92 pass (net8.0 + net10.0)
+
+**Files created:**
+- `src/ElBruno.Realtime.Benchmarks/` (5 files: csproj, Program, VadBenchmark, SttBenchmark, PipelineBenchmark)
+- `src/ElBruno.Realtime.Tests/ModelManagerSecurityTests.cs`
+- `.squad/decisions/inbox/kane-test-gaps.md` (detailed report)
+
+**Files modified:**
+- `ElBruno.Realtime.slnx` (added Benchmarks project)
+
+**Handoff to Dallas:**
+- Task 1.1: Fix path traversal gap (boundary validation)
+- Task 1.2: Add hash verification instead of size checks
+- Task 2.2: Implement TensorPrimitives optimization, re-run benchmarks for comparison
+
+**Recommendation:** Prioritize path traversal fix before v1.2.0 release.
