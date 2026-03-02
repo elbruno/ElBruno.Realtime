@@ -59,6 +59,17 @@ public static class WhisperModelManager
         using var fileStream = File.Create(modelPath);
         await modelStream.CopyToAsync(fileStream, cancellationToken);
 
+        // Validate file integrity after download
+        var fileInfo = new FileInfo(modelPath);
+        const long minSize = 10 * 1024; // 10KB
+        const long maxSize = 2L * 1024 * 1024 * 1024; // 2GB
+        
+        if (fileInfo.Length < minSize || fileInfo.Length > maxSize)
+        {
+            File.Delete(modelPath);
+            throw new InvalidOperationException($"Downloaded model file size ({fileInfo.Length:N0} bytes) is outside valid bounds ({minSize:N0} - {maxSize:N0} bytes). File may be corrupted.");
+        }
+
         return modelPath;
     }
 

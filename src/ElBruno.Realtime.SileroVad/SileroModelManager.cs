@@ -55,6 +55,17 @@ public static class SileroModelManager
                 Directory.Delete(onnxDir);
         }
 
+        // Validate file integrity after download
+        var fileInfo = new FileInfo(modelPath);
+        const long minSize = 100 * 1024; // 100KB
+        const long maxSize = 50L * 1024 * 1024; // 50MB
+        
+        if (fileInfo.Length < minSize || fileInfo.Length > maxSize)
+        {
+            File.Delete(modelPath);
+            throw new InvalidOperationException($"Downloaded model file size ({fileInfo.Length:N0} bytes) is outside valid bounds ({minSize:N0} - {maxSize:N0} bytes). File may be corrupted.");
+        }
+
         return modelPath;
     }
 }
