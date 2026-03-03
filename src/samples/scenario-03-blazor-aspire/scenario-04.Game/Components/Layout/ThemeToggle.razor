@@ -1,0 +1,31 @@
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<div class="theme-toggle" title="Switch theme">
+    <button class="@ActiveClass("light")"  @onclick='() => SetTheme("light")'  aria-label="Light theme">☀️</button>
+    <button class="@ActiveClass("system")" @onclick='() => SetTheme("system")' aria-label="System theme">🖥️</button>
+    <button class="@ActiveClass("dark")"   @onclick='() => SetTheme("dark")'   aria-label="Dark theme">🌙</button>
+</div>
+
+@code {
+    private string _current = "system";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _current = await JS.InvokeAsync<string>("themeManager.init");
+            StateHasChanged();
+        }
+    }
+
+    private async Task SetTheme(string theme)
+    {
+        _current = theme;
+        await JS.InvokeVoidAsync("themeManager.apply", theme);
+    }
+
+    private string ActiveClass(string theme) => _current == theme ? "active" : "";
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
