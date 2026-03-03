@@ -36,7 +36,7 @@ Your App
    ↓
 ┌─────────────────────────────────────┐
 │   RealtimeConversationPipeline      │  ← Orchestration Layer
-│   (Chains VAD → STT → LLM → TTS)   │
+│   (Chains VAD → STT → LLM → TTS)    │
 └─────────────────────────────────────┘
    ↓         ↓         ↓         ↓
  Silero    Whisper   Ollama    Kokoro/Qwen/VibeVoice
