@@ -6,8 +6,8 @@ namespace ElBruno.Realtime.Tests;
 /// <summary>
 /// Tests for QwenTTS DI registration extensions with GPU configuration support (Issue #3).
 /// Validates backward compatibility, configuration callbacks, and edge cases.
+/// Tests check service registration without instantiating to avoid model download race conditions.
 /// </summary>
-[Collection("QwenTts Sequential")]
 public class QwenTtsRealtimeExtensionsTests
 {
     [Fact]
@@ -19,14 +19,11 @@ public class QwenTtsRealtimeExtensionsTests
 
         // Act - backward compatibility: no callback parameter
         builder.UseQwenTts();
-        var provider = services.BuildServiceProvider();
 
-        // Assert - both ITtsPipeline and ITextToSpeechClient are registered
-        // Note: ITtsPipeline is internal to ElBruno.QwenTTS package, so we only verify ITextToSpeechClient
-        var ttsClient = provider.GetService<ITextToSpeechClient>();
-
-        Assert.NotNull(ttsClient);
-        Assert.IsType<QwenTextToSpeechClientAdapter>(ttsClient);
+        // Assert - ITextToSpeechClient is registered (check descriptor, don't instantiate)
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ITextToSpeechClient));
+        Assert.NotNull(descriptor);
+        Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
     }
 
     [Fact]
@@ -43,12 +40,10 @@ public class QwenTtsRealtimeExtensionsTests
             opts.GpuDeviceId = 1; // GPU device 1 (user's scenario from issue #3)
             configuredDeviceId = opts.GpuDeviceId; // Capture for verification
         });
-        var provider = services.BuildServiceProvider();
 
         // Assert - services registered and callback was invoked
-        var ttsClient = provider.GetService<ITextToSpeechClient>();
-
-        Assert.NotNull(ttsClient);
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ITextToSpeechClient));
+        Assert.NotNull(descriptor);
         Assert.Equal(1, configuredDeviceId); // Callback was invoked
     }
 
@@ -75,11 +70,10 @@ public class QwenTtsRealtimeExtensionsTests
                 executionProviderCaptured = true;
             }
         });
-        var provider = services.BuildServiceProvider();
 
         // Assert - callback executed successfully with multiple options
-        var ttsClient = provider.GetService<ITextToSpeechClient>();
-        Assert.NotNull(ttsClient);
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ITextToSpeechClient));
+        Assert.NotNull(descriptor);
         Assert.True(deviceIdCaptured, "DeviceId was not set in callback");
         Assert.True(executionProviderCaptured, "Multiple options were not processed");
     }
@@ -92,13 +86,11 @@ public class QwenTtsRealtimeExtensionsTests
 
         // Act - use IServiceCollection overload without callback
         services.AddQwenTtsRealtime();
-        var provider = services.BuildServiceProvider();
 
-        // Assert - both services registered
-        var ttsClient = provider.GetService<ITextToSpeechClient>();
-
-        Assert.NotNull(ttsClient);
-        Assert.IsType<QwenTextToSpeechClientAdapter>(ttsClient);
+        // Assert - check service descriptor without instantiation
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ITextToSpeechClient));
+        Assert.NotNull(descriptor);
+        Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
     }
 
     [Fact]
@@ -116,12 +108,10 @@ public class QwenTtsRealtimeExtensionsTests
             deviceIdSet = opts.GpuDeviceId;
             callbackInvoked = true;
         });
-        var provider = services.BuildServiceProvider();
 
         // Assert - callback invoked and services registered
-        var ttsClient = provider.GetService<ITextToSpeechClient>();
-
-        Assert.NotNull(ttsClient);
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ITextToSpeechClient));
+        Assert.NotNull(descriptor);
         Assert.True(callbackInvoked, "Configuration callback was not invoked");
         Assert.Equal(3, deviceIdSet);
     }
@@ -135,13 +125,10 @@ public class QwenTtsRealtimeExtensionsTests
 
         // Act - explicitly pass null callback (edge case)
         builder.UseQwenTts(configureOptions: null);
-        var provider = services.BuildServiceProvider();
 
         // Assert - services still registered with default configuration
-        var ttsClient = provider.GetService<ITextToSpeechClient>();
-
-        Assert.NotNull(ttsClient);
-        Assert.IsType<QwenTextToSpeechClientAdapter>(ttsClient);
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ITextToSpeechClient));
+        Assert.NotNull(descriptor);
     }
 
     [Fact]
@@ -152,12 +139,10 @@ public class QwenTtsRealtimeExtensionsTests
 
         // Act - explicitly pass null callback (edge case)
         services.AddQwenTtsRealtime(configureOptions: null);
-        var provider = services.BuildServiceProvider();
 
         // Assert - services still registered with default configuration
-        var ttsClient = provider.GetService<ITextToSpeechClient>();
-
-        Assert.NotNull(ttsClient);
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ITextToSpeechClient));
+        Assert.NotNull(descriptor);
     }
 
     [Fact]
@@ -179,12 +164,12 @@ public class QwenTtsRealtimeExtensionsTests
 
         // Assert - all services registered correctly
         var options = provider.GetService<RealtimeOptions>();
-        var ttsClient = provider.GetService<ITextToSpeechClient>();
+        var ttsDescriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ITextToSpeechClient));
         var chatClient = provider.GetService<Microsoft.Extensions.AI.IChatClient>();
 
         Assert.NotNull(options);
         Assert.Equal("en-US", options.DefaultLanguage);
-        Assert.NotNull(ttsClient);
+        Assert.NotNull(ttsDescriptor);
         Assert.NotNull(chatClient);
     }
 
@@ -214,13 +199,4 @@ public class QwenTtsRealtimeExtensionsTests
         // Assert - same IServiceCollection instance returned
         Assert.Same(services, returnedServices);
     }
-}
-
-/// <summary>
-/// Collection definition to force QwenTTS tests to run sequentially.
-/// Prevents parallel model downloads from causing file locking conflicts.
-/// </summary>
-[CollectionDefinition("QwenTts Sequential", DisableParallelization = true)]
-public class QwenTtsSequentialCollection
-{
 }
