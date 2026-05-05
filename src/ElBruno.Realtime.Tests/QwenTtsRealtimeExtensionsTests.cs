@@ -7,6 +7,7 @@ namespace ElBruno.Realtime.Tests;
 /// Tests for QwenTTS DI registration extensions with GPU configuration support (Issue #3).
 /// Validates backward compatibility, configuration callbacks, and edge cases.
 /// </summary>
+[Collection("QwenTts Sequential")]
 public class QwenTtsRealtimeExtensionsTests
 {
     [Fact]
@@ -213,4 +214,13 @@ public class QwenTtsRealtimeExtensionsTests
         // Assert - same IServiceCollection instance returned
         Assert.Same(services, returnedServices);
     }
+}
+
+/// <summary>
+/// Collection definition to force QwenTTS tests to run sequentially.
+/// Prevents parallel model downloads from causing file locking conflicts.
+/// </summary>
+[CollectionDefinition("QwenTts Sequential", DisableParallelization = true)]
+public class QwenTtsSequentialCollection
+{
 }
