@@ -118,3 +118,30 @@
 **Aspire Architecture:** 3 services now running (api, web, game), both frontends connect to same backend via `WithReference(api)`. Service discovery handles DNS resolution automatically.
 
 **Pending (Phases 5–6):** Kane smoke test (background) + Parker README update (background).
+
+### 2026-02-28: Issue #1 Triage — Security & Performance Audit
+
+**Problem:** Bruno requested triage of GitHub issue #1 to apply lessons from LocalEmbeddings v1.1.0 security/performance audit (checklists: security, performance, CI/Linux, Squad rules).
+
+**Assessment conducted:**
+- **Security (2/5 ✅, 2/5 ⚠️, 1/5 ❌):** Path traversal protection exists but untested. Missing: input validation on public APIs (SessionId), file integrity checks on downloaded models, HTTPS enforcement documentation.
+- **Performance (0/4 ❌):** No TensorPrimitives usage (manual loops in VAD), no ArrayPool, no benchmarks, no hot-path profiling. Need baseline before optimizing.
+- **CI/Linux (2/3 ✅, 1/3 ❌):** Publish workflow strips `v` prefix but doesn't handle `.1.2.3` typo. No version format validation. Squad-ci.yml has TODO placeholder.
+- **Squad (0/1 ❌):** No model routing skill for cost optimization (simple tasks → fast/cheap models).
+
+**Decomposition:** 13 tasks across 4 domains (security, performance, CI, squad conventions). Assigned to Dallas (security + perf impl), Kane (tests + benchmarks), Parker (CI fixes), Ripley (docs + skills).
+
+**Key insights:**
+1. **Security testing gap:** Defense-in-depth measures exist (path validation) but never exercised. Tests are cheap insurance.
+2. **Benchmark-first optimization:** Don't optimize blind. Task 2.1 (benchmarks) gates Task 2.2 (TensorPrimitives) and 2.3 (ArrayPool).
+3. **Tiered work criticality:** Security is HIGH (prod blocker), performance is MEDIUM (nice-to-have), CI/Squad are LOW (polish).
+4. **Reference repo value:** LocalEmbeddings PR #37 provides working examples for every pattern (TensorPrimitives usage, file validation, version regex).
+
+**Architecture patterns identified:**
+- Model downloaders use consistent pattern: `Path.GetFullPath(target)` + `StartsWith(baseDir)` — effective but needs test coverage
+- Pipeline has 4 optional DI-injected stages (VAD, STT, LLM, TTS) — adding validation here requires constructor bloat; prefer Options validation
+- External dependencies (HuggingFace.Downloader, Whisper.net) handle HTTPS — document trust model, don't duplicate
+
+**Triage doc:** `.squad/decisions/inbox/ripley-issue1-triage.md` (comprehensive, ready for team execution)
+
+**Timeline:** 3-5 days across 4 agents. Target: March 7, 2026.

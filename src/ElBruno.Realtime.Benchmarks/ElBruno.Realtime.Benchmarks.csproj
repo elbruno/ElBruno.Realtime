@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>ElBruno.Realtime.Benchmarks</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ElBruno.Realtime\ElBruno.Realtime.csproj" />
+    <ProjectReference Include="..\ElBruno.Realtime.Whisper\ElBruno.Realtime.Whisper.csproj" />
+    <ProjectReference Include="..\ElBruno.Realtime.SileroVad\ElBruno.Realtime.SileroVad.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.14.*" />
+    <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="10.0.0" />
+  </ItemGroup>
+
+</Project>

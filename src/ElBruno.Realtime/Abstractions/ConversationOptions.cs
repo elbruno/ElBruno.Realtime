@@ -1,8 +1,15 @@
+using System.Text.RegularExpressions;
+
 namespace ElBruno.Realtime;
 
 /// <summary>Options for a real-time conversation session.</summary>
 public class ConversationOptions
 {
+    private static readonly Regex SessionIdPattern = new(@"^[a-zA-Z0-9_-]+$", RegexOptions.Compiled);
+    private const int MaxSessionIdLength = 256;
+    
+    private string? _sessionId;
+
     /// <summary>Gets or sets the system prompt for the LLM.</summary>
     public string? SystemPrompt { get; set; }
 
@@ -24,8 +31,25 @@ public class ConversationOptions
     /// <summary>
     /// Gets or sets the session identifier for per-user conversation history.
     /// When null, a default shared session is used (backward-compatible single-user mode).
+    /// Must be alphanumeric with dashes/underscores only, max 256 characters.
     /// </summary>
-    public string? SessionId { get; set; }
+    /// <exception cref="ArgumentException">Thrown when SessionId exceeds 256 characters or contains invalid characters.</exception>
+    public string? SessionId 
+    { 
+        get => _sessionId;
+        set
+        {
+            if (value != null)
+            {
+                if (value.Length > MaxSessionIdLength)
+                    throw new ArgumentException($"SessionId must not exceed {MaxSessionIdLength} characters.", nameof(SessionId));
+                
+                if (!SessionIdPattern.IsMatch(value))
+                    throw new ArgumentException("SessionId must contain only alphanumeric characters, dashes, and underscores.", nameof(SessionId));
+            }
+            _sessionId = value;
+        }
+    }
 
     /// <summary>Gets or sets any additional properties.</summary>
     public IDictionary<string, object?>? AdditionalProperties { get; set; }

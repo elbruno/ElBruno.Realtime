@@ -34,7 +34,8 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "release" ]]; then
             VERSION="${{ github.event.release.tag_name }}"
-            VERSION="${VERSION#v}"
+            VERSION="${VERSION#v}"     # v1.2.3 → 1.2.3
+            VERSION="${VERSION#.}"     # .1.2.3 → 1.2.3
           elif [[ -n "${{ inputs.version }}" ]]; then
             VERSION="${{ inputs.version }}"
           else
@@ -42,6 +43,16 @@ jobs:
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "📦 Publishing version: $VERSION"
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9.]+)?$ ]]; then
+            echo "❌ Invalid version format: $VERSION"
+            echo "Expected: X.Y.Z or X.Y.Z-preview"
+            exit 1
+          fi
+          echo "✅ Version format valid: $VERSION"
 
       - name: Restore
         run: dotnet restore
