@@ -5,7 +5,7 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>ElBruno.Realtime.Whisper</PackageId>
-    <Version>0.1.1-preview</Version>
+    <Version>0.10.0</Version>
     <Authors>Bruno Capuano</Authors>
     <Description>Whisper-based ISpeechToTextClient implementation for ElBruno.Realtime. Provides local speech-to-text using Whisper.net with automatic GGML model download. Supports tiny.en (fast) and base.en (accurate) models.</Description>
     <PackageTags>whisper;speech-to-text;stt;onnx;ai;local;realtime</PackageTags>

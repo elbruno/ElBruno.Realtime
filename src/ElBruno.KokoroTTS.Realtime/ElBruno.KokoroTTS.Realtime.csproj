@@ -5,7 +5,7 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>ElBruno.KokoroTTS.Realtime</PackageId>
-    <Version>0.1.0-preview</Version>
+    <Version>0.10.0</Version>
     <Authors>Bruno Capuano</Authors>
     <Description>Bridge between KokoroSharp and ElBruno.Realtime — provides ITextToSpeechClient adapter and DI extensions for Kokoro TTS integration with the real-time conversation pipeline.</Description>
     <PackageTags>kokoro;tts;text-to-speech;realtime;ai;local;onnx;bridge</PackageTags>

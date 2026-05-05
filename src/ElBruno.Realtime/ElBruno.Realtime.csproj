@@ -5,7 +5,7 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>ElBruno.Realtime</PackageId>
-    <Version>0.1.1-preview</Version>
+    <Version>0.10.0</Version>
     <Authors>Bruno Capuano</Authors>
     <Description>Core abstractions for real-time audio conversation in .NET. Provides ITextToSpeechClient, IVoiceActivityDetector, and IRealtimeConversationClient interfaces following Microsoft.Extensions.AI patterns. Pluggable providers for STT, TTS, VAD, and LLM.</Description>
     <PackageTags>realtime;speech;conversation;ai;tts;stt;vad;onnx;microsoft-extensions-ai;voice</PackageTags>
