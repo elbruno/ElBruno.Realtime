@@ -16,10 +16,27 @@ public static class QwenTtsRealtimeExtensions
     /// <see cref="ITextToSpeechClient"/> adapter in a single call.
     /// </summary>
     /// <param name="builder">The real-time builder.</param>
+    /// <param name="configureOptions">Optional callback to configure QwenTTS options (e.g., GPU device selection).</param>
     /// <returns>The builder for chaining.</returns>
-    public static RealtimeBuilder UseQwenTts(this RealtimeBuilder builder)
+    /// <example>
+    /// <code>
+    /// // Default (CPU execution)
+    /// builder.UseQwenTts();
+    /// 
+    /// // GPU execution on device 1
+    /// builder.UseQwenTts(opts => opts.DeviceId = 1);
+    /// </code>
+    /// </example>
+    public static RealtimeBuilder UseQwenTts(this RealtimeBuilder builder, Action<QwenTtsOptions>? configureOptions = null)
     {
-        builder.Services.AddQwenTts();
+        if (configureOptions != null)
+        {
+            builder.Services.AddQwenTts(configureOptions);
+        }
+        else
+        {
+            builder.Services.AddQwenTts();
+        }
         builder.Services.AddSingleton<ITextToSpeechClient, QwenTextToSpeechClientAdapter>();
         return builder;
     }
@@ -30,10 +47,27 @@ public static class QwenTtsRealtimeExtensions
     /// <see cref="ITextToSpeechClient"/> adapter in a single call.
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="configureOptions">Optional callback to configure QwenTTS options (e.g., GPU device selection).</param>
     /// <returns>The service collection for chaining.</returns>
-    public static IServiceCollection AddQwenTtsRealtime(this IServiceCollection services)
+    /// <example>
+    /// <code>
+    /// // Default (CPU execution)
+    /// services.AddQwenTtsRealtime();
+    /// 
+    /// // GPU execution on device 1
+    /// services.AddQwenTtsRealtime(opts => opts.DeviceId = 1);
+    /// </code>
+    /// </example>
+    public static IServiceCollection AddQwenTtsRealtime(this IServiceCollection services, Action<QwenTtsOptions>? configureOptions = null)
     {
-        services.AddQwenTts();
+        if (configureOptions != null)
+        {
+            services.AddQwenTts(configureOptions);
+        }
+        else
+        {
+            services.AddQwenTts();
+        }
         services.AddSingleton<ITextToSpeechClient, QwenTextToSpeechClientAdapter>();
         return services;
     }
