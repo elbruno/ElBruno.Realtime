@@ -5,7 +5,7 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>ElBruno.Realtime.SileroVad</PackageId>
-    <Version>0.1.0-preview</Version>
+    <Version>0.1.1-preview</Version>
     <Authors>Bruno Capuano</Authors>
     <Description>Silero VAD-based IVoiceActivityDetector implementation for ElBruno.Realtime. Provides local voice activity detection using Silero VAD v5 ONNX model with automatic download. Detects speech segments in continuous audio streams.</Description>
     <PackageTags>vad;voice-activity-detection;silero;onnx;ai;local;realtime;speech</PackageTags>
