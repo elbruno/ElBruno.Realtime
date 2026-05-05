@@ -10,6 +10,51 @@
 
 <!-- Append learnings below. Format: ### YYYY-MM-DD: Topic\nWhat was learned. -->
 
+### 2026-05-05: Issue #3 GPU Configuration Tests — Complete
+
+**Test Results:** 100/100 passing (50 tests × 2 TFMs: net8.0 + net10.0). Zero failures, zero skipped.
+
+**New Test Class Added:** `QwenTtsRealtimeExtensionsTests` — 10 tests validating GPU device ID configuration
+
+**Test Coverage:**
+1. `UseQwenTts_NoCallback_RegistersServices` — Backward compatibility (no callback parameter)
+2. `UseQwenTts_WithDeviceIdCallback_RegistersServicesWithConfiguration` — GPU device ID callback (e.g., `opts.GpuDeviceId = 1`)
+3. `UseQwenTts_MultipleConfigurationOptions_AcceptsAllOptions` — Multiple configuration options chained
+4. `AddQwenTtsRealtime_NoCallback_RegistersServices` — IServiceCollection overload backward compatibility
+5. `AddQwenTtsRealtime_WithConfiguration_RegistersServicesAndInvokesCallback` — IServiceCollection with configuration
+6. `UseQwenTts_NullCallback_RegistersServicesWithDefaults` — Edge case: explicit null callback
+7. `AddQwenTtsRealtime_NullCallback_RegistersServicesWithDefaults` — Edge case: null callback on IServiceCollection
+8. `UseQwenTts_ChainedWithOtherBuilderCalls_WorksCorrectly` — Fluent chaining with other builder methods
+9. `UseQwenTts_ReturnsBuilderForChaining` — Fluent API pattern verification
+10. `AddQwenTtsRealtime_ReturnsServiceCollectionForChaining` — IServiceCollection chaining verification
+
+**Implementation Details:**
+- Feature implemented by Dallas (C# Dev) in commit `085eb38`: Added `Action<QwenTtsOptions>?` callback parameter to both `UseQwenTts()` and `AddQwenTtsRealtime()` methods
+- Property name: `GpuDeviceId` (not `DeviceId`) — matches ElBruno.QwenTTS v0.1.8-preview API
+- Backward compatible: Optional parameter with null default, existing code unaffected
+- XML docs include GPU configuration examples
+
+**Edge Cases Validated:**
+- Null callback safety — services register with defaults
+- Fluent API chaining — builder/collection instances returned correctly
+- Multiple configuration options — callback can set multiple properties without errors
+- Both extension method variants tested (RealtimeBuilder and IServiceCollection)
+
+**Commits:**
+- `085eb38` — feat: Add GPU configuration callback to UseQwenTts() — fixes issue #3
+- `9547bbd` — test: Add comprehensive tests for GPU configuration in UseQwenTts() — issue #3
+
+**Test Pass Rate:** 100% (50/50 across net8.0 and net10.0)
+
+**Findings:**
+- All tests execute successfully
+- QwenTTS package provides `GpuDeviceId` property (int, default: 0) for GPU device selection
+- Configuration callback pattern follows .NET DI conventions
+- No breaking changes introduced — fully backward compatible
+- Tests download QwenTTS models on first run (~several seconds per test run)
+
+
+
 ### 2025-07-18: Initial Test Suite Analysis
 
 **Test Results:** 66/66 passing (33 tests × 2 TFMs: net8.0 + net10.0). Zero failures, zero skipped.
