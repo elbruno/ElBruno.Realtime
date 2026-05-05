@@ -103,11 +103,17 @@ await foreach (var evt in conversation.ConverseAsync(microphoneStream))
 
 ## Packages
 
-| Package | Description |
-|---------|-------------|
-| [`ElBruno.Realtime`](https://www.nuget.org/packages/ElBruno.Realtime) | Core: `ITextToSpeechClient`, `IVoiceActivityDetector`, `IRealtimeConversationClient`, pipeline orchestration, DI |
-| [`ElBruno.Realtime.Whisper`](https://www.nuget.org/packages/ElBruno.Realtime.Whisper) | `ISpeechToTextClient` (M.E.AI) via Whisper.net — auto-downloads GGML models |
-| [`ElBruno.Realtime.SileroVad`](https://www.nuget.org/packages/ElBruno.Realtime.SileroVad) | `IVoiceActivityDetector` via Silero VAD v5 ONNX — configurable thresholds |
+| Package | NuGet | Description |
+|---------|-------|-------------|
+| **Core** | | |
+| [`ElBruno.Realtime`](https://www.nuget.org/packages/ElBruno.Realtime) | [![NuGet](https://img.shields.io/nuget/v/ElBruno.Realtime.svg?style=flat-square&logo=nuget)](https://www.nuget.org/packages/ElBruno.Realtime) | Core: `ITextToSpeechClient`, `IVoiceActivityDetector`, `IRealtimeConversationClient`, pipeline orchestration, DI |
+| **Speech Processing** | | |
+| [`ElBruno.Realtime.Whisper`](https://www.nuget.org/packages/ElBruno.Realtime.Whisper) | [![NuGet](https://img.shields.io/nuget/v/ElBruno.Realtime.Whisper.svg?style=flat-square&logo=nuget)](https://www.nuget.org/packages/ElBruno.Realtime.Whisper) | `ISpeechToTextClient` (M.E.AI) via Whisper.net — auto-downloads GGML models |
+| [`ElBruno.Realtime.SileroVad`](https://www.nuget.org/packages/ElBruno.Realtime.SileroVad) | [![NuGet](https://img.shields.io/nuget/v/ElBruno.Realtime.SileroVad.svg?style=flat-square&logo=nuget)](https://www.nuget.org/packages/ElBruno.Realtime.SileroVad) | `IVoiceActivityDetector` via Silero VAD v5 ONNX — configurable thresholds |
+| **Text-to-Speech Bridges** | | |
+| [`ElBruno.QwenTTS.Realtime`](https://www.nuget.org/packages/ElBruno.QwenTTS.Realtime) | [![NuGet](https://img.shields.io/nuget/v/ElBruno.QwenTTS.Realtime.svg?style=flat-square&logo=nuget)](https://www.nuget.org/packages/ElBruno.QwenTTS.Realtime) | `ITextToSpeechClient` adapter for QwenTTS with GPU device configuration |
+| [`ElBruno.VibeVoiceTTS.Realtime`](https://www.nuget.org/packages/ElBruno.VibeVoiceTTS.Realtime) | [![NuGet](https://img.shields.io/nuget/v/ElBruno.VibeVoiceTTS.Realtime.svg?style=flat-square&logo=nuget)](https://www.nuget.org/packages/ElBruno.VibeVoiceTTS.Realtime) | `ITextToSpeechClient` adapter for VibeVoiceTTS |
+| [`ElBruno.KokoroTTS.Realtime`](https://www.nuget.org/packages/ElBruno.KokoroTTS.Realtime) | [![NuGet](https://img.shields.io/nuget/v/ElBruno.KokoroTTS.Realtime.svg?style=flat-square&logo=nuget)](https://www.nuget.org/packages/ElBruno.KokoroTTS.Realtime) | `ITextToSpeechClient` adapter for Kokoro TTS |
 
 ## Samples
 
