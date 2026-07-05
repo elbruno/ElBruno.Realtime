@@ -5,7 +5,7 @@
 [![Build Status](https://github.com/elbruno/ElBruno.Realtime/actions/workflows/publish.yml/badge.svg)](https://github.com/elbruno/ElBruno.Realtime/actions/workflows/publish.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/elbruno/ElBruno.Realtime?style=social)](https://github.com/elbruno/ElBruno.Realtime)
-[![Twitter Follow](https://img.shields.io/twitter/follow/elbruno?style=social)](https://twitter.com/elbruno)
+[![Twitter Follow](https://img.shields.io/twitter/follow/elbruno?style=social)](https://www.x.com/elbruno/)
 
 A pluggable **real-time audio conversation framework** for .NET, following [Microsoft.Extensions.AI](https://learn.microsoft.com/en-us/dotnet/ai/microsoft-extensions-ai) patterns. Build voice-powered apps with local STT, TTS, VAD, and any LLM — all running on your machine, no cloud required.
 
