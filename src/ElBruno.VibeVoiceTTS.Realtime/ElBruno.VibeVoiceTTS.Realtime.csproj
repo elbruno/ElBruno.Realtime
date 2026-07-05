@@ -5,7 +5,7 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>ElBruno.VibeVoiceTTS.Realtime</PackageId>
-    <Version>0.10.0</Version>
+    <Version>0.10.1</Version>
     <Authors>Bruno Capuano</Authors>
     <Description>Bridge between ElBruno.VibeVoiceTTS and ElBruno.Realtime — provides ITextToSpeechClient adapter and DI extensions for VibeVoiceTTS integration with the real-time conversation pipeline.</Description>
     <PackageTags>vibevoice;tts;text-to-speech;realtime;ai;local;onnx;bridge</PackageTags>
