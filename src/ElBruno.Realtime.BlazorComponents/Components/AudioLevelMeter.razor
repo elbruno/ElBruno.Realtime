@@ -1,0 +1,45 @@
+@namespace ElBruno.Realtime.BlazorComponents
+
+<div class="realtime-audio-level-meter @CssClass"
+     style="height: @(Height)px; position: relative; background: #e9ecef; border-radius: 4px; overflow: hidden;"
+     title="@(Source == AudioSource.Microphone ? "Microphone level" : "Speaker level")">
+    <div class="realtime-audio-level-bar"
+         style="position: absolute; bottom: 0; left: 0; right: 0;
+                height: @(LevelPercent)%;
+                background: @Color;
+                border-radius: 4px;
+                transition: height 80ms ease-out;">
+    </div>
+    @if (ShowLabel)
+    {
+        <div class="realtime-audio-level-label"
+             style="position: absolute; top: 2px; left: 4px; font-size: 10px; color: #6c757d; user-select: none;">
+            @(Source == AudioSource.Microphone ? "🎙" : "🔊")
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Audio source to visualise. Default: Microphone.</summary>
+    [Parameter] public AudioSource Source { get; set; } = AudioSource.Microphone;
+
+    /// <summary>Height of the meter in pixels. Default: 40.</summary>
+    [Parameter] public int Height { get; set; } = 40;
+
+    /// <summary>Bar fill colour (any valid CSS color). Default: #0d6efd.</summary>
+    [Parameter] public string Color { get; set; } = "#0d6efd";
+
+    /// <summary>
+    /// Current audio level, 0.0–1.0. Bind to a field updated from your audio stream.
+    /// Default: 0.0.
+    /// </summary>
+    [Parameter] public double Level { get; set; }
+
+    /// <summary>Whether to show the source emoji label. Default: true.</summary>
+    [Parameter] public bool ShowLabel { get; set; } = true;
+
+    /// <summary>Additional CSS class to apply to the container.</summary>
+    [Parameter] public string? CssClass { get; set; }
+
+    private double LevelPercent => Math.Clamp(Level * 100.0, 0.0, 100.0);
+}

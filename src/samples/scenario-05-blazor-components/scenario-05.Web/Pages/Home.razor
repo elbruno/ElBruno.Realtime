@@ -1,0 +1,136 @@
+@page "/"
+@using ElBruno.Realtime.BlazorComponents
+@using ElBruno.Realtime
+
+<PageTitle>Realtime BlazorComponents Demo</PageTitle>
+
+<h1>🎙 ElBruno.Realtime.BlazorComponents Demo</h1>
+<p>This page demonstrates all five ready-to-use Blazor components from the <code>ElBruno.Realtime.BlazorComponents</code> package.</p>
+
+<hr />
+
+<h2>1. Session Controls</h2>
+<p>Minimal start/stop/mute cluster — three sizes.</p>
+<div class="demo-row">
+    <div>
+        <strong>Small</strong>
+        <SessionControls IsRunning="@_isRunning"
+                         IsMuted="@_isMuted"
+                         Size="ControlSize.Small"
+                         OnStarted="@HandleStart"
+                         OnStopped="@HandleStop"
+                         OnMuteToggled="@HandleMute" />
+    </div>
+    <div>
+        <strong>Medium (default)</strong>
+        <SessionControls IsRunning="@_isRunning"
+                         IsMuted="@_isMuted"
+                         Size="ControlSize.Medium"
+                         OnStarted="@HandleStart"
+                         OnStopped="@HandleStop"
+                         OnMuteToggled="@HandleMute" />
+    </div>
+    <div>
+        <strong>Large</strong>
+        <SessionControls IsRunning="@_isRunning"
+                         IsMuted="@_isMuted"
+                         Size="ControlSize.Large"
+                         OnStarted="@HandleStart"
+                         OnStopped="@HandleStop"
+                         OnMuteToggled="@HandleMute" />
+    </div>
+</div>
+
+<hr />
+
+<h2>2. Realtime Session Panel</h2>
+<p>Full card with VAD indicator, speaker dot, and Start/Stop/Mute buttons.</p>
+<RealtimeSessionPanel IsRunning="@_isRunning"
+                      IsVadActive="@_isVadActive"
+                      IsMuted="@_isMuted"
+                      OnStarted="@HandleStart"
+                      OnStopped="@HandleStop"
+                      OnMuteToggled="@HandleMute" />
+
+<hr />
+
+<h2>3. Audio Level Meter</h2>
+<p>Canvas-style VU bar for microphone and speaker.</p>
+<div class="demo-row">
+    <div>
+        <strong>Microphone</strong>
+        <AudioLevelMeter Source="AudioSource.Microphone"
+                         Level="@_micLevel"
+                         Height="40"
+                         Color="#0d6efd" />
+    </div>
+    <div>
+        <strong>Speaker (TTS output)</strong>
+        <AudioLevelMeter Source="AudioSource.Speaker"
+                         Level="@_speakerLevel"
+                         Height="40"
+                         Color="#198754" />
+    </div>
+</div>
+<button @onclick="SimulateAudio">Simulate audio burst</button>
+
+<hr />
+
+<h2>4. Latency Monitor</h2>
+<p>Rolling STT / LLM / TTS latency badges with colour coding.</p>
+<LatencyMonitor SttLatencyMs="@_sttMs"
+                LlmLatencyMs="@_llmMs"
+                TtsLatencyMs="@_ttsMs"
+                ShowAverage="true" />
+<button @onclick="SimulateLatency">Simulate latency update</button>
+
+<hr />
+
+<h2>5. Conversation Timeline</h2>
+<p>Scrolling turn-by-turn transcript.</p>
+<ConversationTimeline Turns="@_turns"
+                      MaxTurns="20"
+                      ShowAudioPlayback="true"
+                      MaxHeightPx="300" />
+<button @onclick="AddTurn">Add demo turn</button>
+
+@code {
+    private bool _isRunning;
+    private bool _isMuted;
+    private bool _isVadActive;
+    private double _micLevel;
+    private double _speakerLevel;
+    private double? _sttMs;
+    private double? _llmMs;
+    private double? _ttsMs;
+    private List<ConversationTurn> _turns = [];
+
+    private readonly Random _rng = new();
+
+    private void HandleStart() => _isRunning = true;
+    private void HandleStop() => _isRunning = false;
+    private void HandleMute(bool muted) => _isMuted = muted;
+
+    private void SimulateAudio()
+    {
+        _micLevel = _rng.NextDouble();
+        _speakerLevel = _rng.NextDouble();
+        _isVadActive = _micLevel > 0.3;
+    }
+
+    private void SimulateLatency()
+    {
+        _sttMs = _rng.Next(100, 1200);
+        _llmMs = _rng.Next(200, 2000);
+        _ttsMs = _rng.Next(50, 900);
+    }
+
+    private void AddTurn()
+    {
+        _turns.Add(new ConversationTurn
+        {
+            UserText = $"Demo question #{_turns.Count + 1}",
+            ResponseText = "This is a demo response from the assistant pipeline.",
+        });
+    }
+}

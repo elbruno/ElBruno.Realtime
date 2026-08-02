@@ -9,6 +9,16 @@
 
 A pluggable **real-time audio conversation framework** for .NET, following [Microsoft.Extensions.AI](https://learn.microsoft.com/en-us/dotnet/ai/microsoft-extensions-ai) patterns. Build voice-powered apps with local STT, TTS, VAD, and any LLM — all running on your machine, no cloud required.
 
+## What's New
+
+| Version | Feature |
+|---------|---------|
+| 0.11.0 | **BlazorComponents** — `ElBruno.Realtime.BlazorComponents` RCL with 5 ready-to-use Razor components (`ConversationTimeline`, `RealtimeSessionPanel`, `AudioLevelMeter`, `SessionControls`, `LatencyMonitor`) |
+| 0.10.0 | **Per-session conversation isolation** — `IConversationSessionStore` prevents history leakage in multi-user (SignalR / API) scenarios |
+| 0.10.0 | **Thread-safe SileroVAD** — activated `_inferenceLock` for concurrent callers on the ONNX inference session |
+| 0.9.x | **Kokoro TTS adapter** — `ElBruno.KokoroTTS.Realtime` package for local Kokoro text-to-speech |
+| 0.9.x | **VibeVoice TTS adapter** — `ElBruno.VibeVoiceTTS.Realtime` package for local VibeVoiceTTS |
+
 ## Powered By
 
 This project is built on two core Microsoft frameworks for AI and conversation management:
@@ -107,6 +117,7 @@ await foreach (var evt in conversation.ConverseAsync(microphoneStream))
 |---------|-------|-------------|
 | **Core** | | |
 | [`ElBruno.Realtime`](https://www.nuget.org/packages/ElBruno.Realtime) | [![NuGet](https://img.shields.io/nuget/v/ElBruno.Realtime.svg?style=flat-square&logo=nuget)](https://www.nuget.org/packages/ElBruno.Realtime) | Core: `ITextToSpeechClient`, `IVoiceActivityDetector`, `IRealtimeConversationClient`, pipeline orchestration, DI |
+| [`ElBruno.Realtime.BlazorComponents`](https://www.nuget.org/packages/ElBruno.Realtime.BlazorComponents) | [![NuGet](https://img.shields.io/nuget/v/ElBruno.Realtime.BlazorComponents.svg?style=flat-square&logo=nuget)](https://www.nuget.org/packages/ElBruno.Realtime.BlazorComponents) | Blazor Razor Class Library: `ConversationTimeline`, `RealtimeSessionPanel`, `AudioLevelMeter`, `SessionControls`, `LatencyMonitor` |
 | **Speech Processing** | | |
 | [`ElBruno.Realtime.Whisper`](https://www.nuget.org/packages/ElBruno.Realtime.Whisper) | [![NuGet](https://img.shields.io/nuget/v/ElBruno.Realtime.Whisper.svg?style=flat-square&logo=nuget)](https://www.nuget.org/packages/ElBruno.Realtime.Whisper) | `ISpeechToTextClient` (M.E.AI) via Whisper.net — auto-downloads GGML models |
 | [`ElBruno.Realtime.SileroVad`](https://www.nuget.org/packages/ElBruno.Realtime.SileroVad) | [![NuGet](https://img.shields.io/nuget/v/ElBruno.Realtime.SileroVad.svg?style=flat-square&logo=nuget)](https://www.nuget.org/packages/ElBruno.Realtime.SileroVad) | `IVoiceActivityDetector` via Silero VAD v5 ONNX — configurable thresholds |
@@ -123,6 +134,7 @@ await foreach (var evt in conversation.ConverseAsync(microphoneStream))
 | [scenario-02-api](src/samples/scenario-02-api/) | ASP.NET Core API with SignalR |
 | [scenario-03-blazor-aspire](src/samples/scenario-03-blazor-aspire/) | Blazor + .NET Aspire with voice chat + voice-controlled side-scroller game |
 | [scenario-04-realtime-console](src/samples/scenario-04-realtime-console/) | Real-time microphone conversation with Whisper STT + Ollama LLM |
+| [scenario-05-blazor-components](src/samples/scenario-05-blazor-components/) | Blazor Server demo of all 5 `ElBruno.Realtime.BlazorComponents` components |
 
 ### Run a Sample
 
@@ -153,6 +165,7 @@ All models are cached in `%LOCALAPPDATA%/ElBruno/Realtime/` and shared across ap
 |----------|-------------|
 | [Models Overview](docs/models-overview.md) | How each model is used in the pipeline |
 | [Architecture](docs/realtime-architecture.md) | Three-layer architecture, data flow, M.E.AI integration |
+| [Blazor Components](docs/blazor-components.md) | Component reference for `ElBruno.Realtime.BlazorComponents` |
 | [Publishing](docs/publishing.md) | NuGet publishing guide |
 
 ---

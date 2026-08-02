@@ -1,0 +1,62 @@
+@namespace ElBruno.Realtime.BlazorComponents
+
+<div class="realtime-latency-monitor @CssClass">
+    @if (ShowLabel)
+    {
+        <span class="realtime-latency-title">Latency</span>
+    }
+    <span class="realtime-latency-badge @GetBadgeClass(SttLatencyMs)" title="Speech-to-Text latency">
+        STT @FormatMs(SttLatencyMs)
+    </span>
+    <span class="realtime-latency-badge @GetBadgeClass(LlmLatencyMs)" title="LLM latency">
+        LLM @FormatMs(LlmLatencyMs)
+    </span>
+    <span class="realtime-latency-badge @GetBadgeClass(TtsLatencyMs)" title="Text-to-Speech latency">
+        TTS @FormatMs(TtsLatencyMs)
+    </span>
+    @if (ShowAverage)
+    {
+        var avg = AverageMs();
+        <span class="realtime-latency-badge realtime-latency-badge--avg @GetBadgeClass(avg)" title="Average pipeline latency">
+            AVG @FormatMs(avg)
+        </span>
+    }
+</div>
+
+@code {
+    /// <summary>Most recent STT (Speech-to-Text) latency in milliseconds. Null = no data.</summary>
+    [Parameter] public double? SttLatencyMs { get; set; }
+
+    /// <summary>Most recent LLM (first token) latency in milliseconds. Null = no data.</summary>
+    [Parameter] public double? LlmLatencyMs { get; set; }
+
+    /// <summary>Most recent TTS latency in milliseconds. Null = no data.</summary>
+    [Parameter] public double? TtsLatencyMs { get; set; }
+
+    /// <summary>Whether to show an average badge. Default: true.</summary>
+    [Parameter] public bool ShowAverage { get; set; } = true;
+
+    /// <summary>Whether to show the "Latency" title label. Default: true.</summary>
+    [Parameter] public bool ShowLabel { get; set; } = true;
+
+    /// <summary>Additional CSS class to apply to the container.</summary>
+    [Parameter] public string? CssClass { get; set; }
+
+    private static string GetBadgeClass(double? ms) => ms switch
+    {
+        null => "realtime-latency-badge--unknown",
+        < 300 => "realtime-latency-badge--green",
+        < 800 => "realtime-latency-badge--yellow",
+        _ => "realtime-latency-badge--red",
+    };
+
+    private static string FormatMs(double? ms) =>
+        ms.HasValue ? $"{ms.Value:F0}ms" : "—";
+
+    private double? AverageMs()
+    {
+        var values = new[] { SttLatencyMs, LlmLatencyMs, TtsLatencyMs }
+            .Where(v => v.HasValue).Select(v => v!.Value).ToArray();
+        return values.Length == 0 ? null : values.Average();
+    }
+}

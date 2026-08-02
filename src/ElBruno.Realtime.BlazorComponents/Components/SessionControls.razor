@@ -1,0 +1,75 @@
+@namespace ElBruno.Realtime.BlazorComponents
+
+<div class="realtime-session-controls realtime-session-controls--@SizeCssClass @CssClass">
+    @if (!IsRunning)
+    {
+        <button class="realtime-ctrl-btn realtime-ctrl-btn--start"
+                @onclick="HandleStart"
+                title="Start session"
+                disabled="@Disabled">
+            ▶
+            @if (Size != ControlSize.Small)
+            {
+                <span>Start</span>
+            }
+        </button>
+    }
+    else
+    {
+        <button class="realtime-ctrl-btn realtime-ctrl-btn--mute"
+                @onclick="HandleMuteToggle"
+                title="@(IsMuted ? "Unmute" : "Mute")">
+            @(IsMuted ? "🔇" : "🎙")
+            @if (Size == ControlSize.Large)
+            {
+                <span>@(IsMuted ? "Unmute" : "Mute")</span>
+            }
+        </button>
+        <button class="realtime-ctrl-btn realtime-ctrl-btn--stop"
+                @onclick="HandleStop"
+                title="Stop session">
+            ⏹
+            @if (Size != ControlSize.Small)
+            {
+                <span>Stop</span>
+            }
+        </button>
+    }
+</div>
+
+@code {
+    /// <summary>Whether the session is currently running. Default: false.</summary>
+    [Parameter] public bool IsRunning { get; set; }
+
+    /// <summary>Whether the microphone is currently muted. Default: false.</summary>
+    [Parameter] public bool IsMuted { get; set; }
+
+    /// <summary>Display size of the control cluster. Default: Medium.</summary>
+    [Parameter] public ControlSize Size { get; set; } = ControlSize.Medium;
+
+    /// <summary>Whether all controls are disabled. Default: false.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Additional CSS class to apply to the container.</summary>
+    [Parameter] public string? CssClass { get; set; }
+
+    /// <summary>Raised when Start is clicked.</summary>
+    [Parameter] public EventCallback OnStarted { get; set; }
+
+    /// <summary>Raised when Stop is clicked.</summary>
+    [Parameter] public EventCallback OnStopped { get; set; }
+
+    /// <summary>Raised when Mute/Unmute is clicked. Passes the new muted state.</summary>
+    [Parameter] public EventCallback<bool> OnMuteToggled { get; set; }
+
+    private string SizeCssClass => Size switch
+    {
+        ControlSize.Small => "sm",
+        ControlSize.Large => "lg",
+        _ => "md",
+    };
+
+    private async Task HandleStart() => await OnStarted.InvokeAsync();
+    private async Task HandleStop() => await OnStopped.InvokeAsync();
+    private async Task HandleMuteToggle() => await OnMuteToggled.InvokeAsync(!IsMuted);
+}

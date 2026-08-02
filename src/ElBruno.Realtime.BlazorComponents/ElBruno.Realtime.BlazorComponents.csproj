@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>ElBruno.Realtime.BlazorComponents</RootNamespace>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>ElBruno.Realtime.BlazorComponents</PackageId>
+    <Version>0.11.0</Version>
+    <Authors>Bruno Capuano</Authors>
+    <Description>Ready-to-use Blazor Razor components for real-time audio conversation UIs built on the ElBruno.Realtime pluggable pipeline (VAD + STT + LLM + TTS). Includes ConversationTimeline, RealtimeSessionPanel, AudioLevelMeter, SessionControls, and LatencyMonitor.</Description>
+    <PackageTags>blazor;realtime;speech;conversation;ai;razor;components;tts;stt;vad;voice</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/elbruno/ElBruno.Realtime</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/elbruno/ElBruno.Realtime</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon Condition="Exists('..\..\..\images\nuget_01.png')">nuget_01.png</PackageIcon>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ElBruno.Realtime\ElBruno.Realtime.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.*" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\..\README.md" Pack="true" PackagePath="\" Link="README.md" Condition="Exists('..\..\..\README.md')" />
+    <None Include="..\..\..\images\nuget_01.png" Pack="true" PackagePath="\" Link="nuget_01.png" Condition="Exists('..\..\..\images\nuget_01.png')" />
+  </ItemGroup>
+
+</Project>
