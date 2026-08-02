@@ -1,12 +1,17 @@
 # Publishing a New Version to NuGet
 
-This guide covers how to publish new versions of **ElBruno.PersonaPlex** to NuGet.org using GitHub Actions and NuGet Trusted Publishing (keyless, OIDC-based).
+This guide covers how to publish new versions of the **ElBruno.Realtime** packages to NuGet.org using GitHub Actions and NuGet Trusted Publishing (keyless, OIDC-based).
 
-## Package
+## Packages
 
 | Package | Project | Description |
 |---------|---------|-------------|
-| `ElBruno.PersonaPlex` | `src/ElBruno.PersonaPlex/` | Full-duplex speech-to-speech using PersonaPlex (ONNX Runtime) |
+| `ElBruno.Realtime` | `src/ElBruno.Realtime/` | Core abstractions and orchestration interfaces for realtime audio conversations |
+| `ElBruno.Realtime.Whisper` | `src/ElBruno.Realtime.Whisper/` | Whisper-based speech-to-text adapter |
+| `ElBruno.Realtime.SileroVad` | `src/ElBruno.Realtime.SileroVad/` | Silero VAD voice activity detector |
+| `ElBruno.QwenTTS.Realtime` | `src/ElBruno.QwenTTS.Realtime/` | QwenTTS text-to-speech adapter |
+| `ElBruno.VibeVoiceTTS.Realtime` | `src/ElBruno.VibeVoiceTTS.Realtime/` | VibeVoice TTS adapter |
+| `ElBruno.KokoroTTS.Realtime` | `src/ElBruno.KokoroTTS.Realtime/` | Kokoro TTS adapter |
 
 > **Maintenance rule:** If a new packable library is added under `src/`, update `.github/workflows/publish.yml` in the same PR so the new project is packed/pushed, and add a matching NuGet Trusted Publishing policy.
 
@@ -21,7 +26,7 @@ This guide covers how to publish new versions of **ElBruno.PersonaPlex** to NuGe
 | Setting | Value |
 |---------|-------|
 | **Repository Owner** | `elbruno` |
-| **Repository** | `ElBruno.PersonaPlex` |
+| **Repository** | `ElBruno.Realtime` |
 | **Workflow File** | `publish.yml` |
 | **Environment** | `release` |
 
@@ -39,14 +44,14 @@ This guide covers how to publish new versions of **ElBruno.PersonaPlex** to NuGe
 
 ### Option A: Create a GitHub Release (Recommended)
 
-1. **Update the version** in `src/ElBruno.PersonaPlex/ElBruno.PersonaPlex.csproj`:
+1. **Update the version** in the packable projects under `src/` (for example `src/ElBruno.Realtime/ElBruno.Realtime.csproj`):
    ```xml
-   <Version>1.0.0</Version>
+   <Version>0.10.1</Version>
    ```
-2. **Commit and push** the version change to `main`
+2. **Commit and push** the version change, then merge it to `main`
 3. **Create a GitHub Release:**
    - Go to the repo → **Releases** → **Draft a new release**
-   - Create a new tag: `v1.0.0` (must match the version in the csproj)
+   - Create a new tag: `v0.10.1` (must match the version in the csproj)
    - Fill in the release title and notes
    - Click **Publish release**
 4. The **Publish to NuGet** workflow runs automatically
@@ -61,10 +66,10 @@ This guide covers how to publish new versions of **ElBruno.PersonaPlex** to NuGe
 ## How It Works
 
 ```
-GitHub Release created (e.g. v1.0.0)
+GitHub Release created from `main` (e.g. `v0.10.1`)
   → GitHub Actions triggers publish.yml
     → Builds + tests all projects
-    → Packs ElBruno.PersonaPlex.nupkg
+    → Packs all `ElBruno.Realtime*` and `*.Realtime` package artifacts
     → Requests an OIDC token from GitHub
     → Exchanges the token with NuGet.org for a temporary API key
     → Pushes package to NuGet.org
@@ -75,7 +80,7 @@ GitHub Release created (e.g. v1.0.0)
 
 1. **Release tag** — if triggered by a GitHub Release (strips leading `v`)
 2. **Manual input** — if triggered via workflow dispatch with a version specified
-3. **csproj fallback** — reads `<Version>` from the csproj
+3. **csproj fallback** — reads `<Version>` from `src/ElBruno.Realtime/ElBruno.Realtime.csproj`
 
 ## Troubleshooting
 
