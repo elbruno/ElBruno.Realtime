@@ -1,0 +1,82 @@
+@namespace ElBruno.Realtime.BlazorComponents
+
+<div class="realtime-session-panel @CssClass">
+    <div class="realtime-session-status">
+        <span class="realtime-vad-indicator @(IsVadActive ? "realtime-vad-indicator--active" : "realtime-vad-indicator--idle")"
+              title="@(IsVadActive ? "Voice detected" : "Listening for voice")">
+        </span>
+        <span class="realtime-session-state-label">
+            @if (IsRunning)
+            {
+                <span>@(IsVadActive ? "Speaking…" : "Listening")</span>
+            }
+            else
+            {
+                <span>Stopped</span>
+            }
+        </span>
+    </div>
+
+    <div class="realtime-session-controls">
+        @if (!IsRunning)
+        {
+            <button class="realtime-btn realtime-btn--start"
+                    @onclick="HandleStart"
+                    disabled="@StartDisabled">
+                ▶ Start
+            </button>
+        }
+        else
+        {
+            <button class="realtime-btn realtime-btn--mute"
+                    @onclick="HandleMuteToggle">
+                @(IsMuted ? "🔇 Unmute" : "🎙 Mute")
+            </button>
+            <button class="realtime-btn realtime-btn--stop"
+                    @onclick="HandleStop">
+                ⏹ Stop
+            </button>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>Whether the session is currently running (actively listening). Default: false.</summary>
+    [Parameter] public bool IsRunning { get; set; }
+
+    /// <summary>Whether VAD has detected active speech. Default: false.</summary>
+    [Parameter] public bool IsVadActive { get; set; }
+
+    /// <summary>Whether the microphone is currently muted. Default: false.</summary>
+    [Parameter] public bool IsMuted { get; set; }
+
+    /// <summary>Whether the Start button should be disabled. Default: false.</summary>
+    [Parameter] public bool StartDisabled { get; set; }
+
+    /// <summary>Additional CSS class to apply to the container.</summary>
+    [Parameter] public string? CssClass { get; set; }
+
+    /// <summary>Raised when the Start button is clicked.</summary>
+    [Parameter] public EventCallback OnStarted { get; set; }
+
+    /// <summary>Raised when the Stop button is clicked.</summary>
+    [Parameter] public EventCallback OnStopped { get; set; }
+
+    /// <summary>Raised when the Mute/Unmute button is clicked. Passes the new muted state.</summary>
+    [Parameter] public EventCallback<bool> OnMuteToggled { get; set; }
+
+    private async Task HandleStart()
+    {
+        await OnStarted.InvokeAsync();
+    }
+
+    private async Task HandleStop()
+    {
+        await OnStopped.InvokeAsync();
+    }
+
+    private async Task HandleMuteToggle()
+    {
+        await OnMuteToggled.InvokeAsync(!IsMuted);
+    }
+}

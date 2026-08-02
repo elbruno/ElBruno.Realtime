@@ -12,6 +12,7 @@
     <ProjectReference Include="..\ElBruno.Realtime.Whisper\ElBruno.Realtime.Whisper.csproj" />
     <ProjectReference Include="..\ElBruno.Realtime.SileroVad\ElBruno.Realtime.SileroVad.csproj" />
     <ProjectReference Include="..\ElBruno.QwenTTS.Realtime\ElBruno.QwenTTS.Realtime.csproj" />
+    <ProjectReference Include="..\ElBruno.Realtime.BlazorComponents\ElBruno.Realtime.BlazorComponents.csproj" />
   </ItemGroup>
 
   <ItemGroup>

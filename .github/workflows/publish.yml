@@ -71,6 +71,7 @@ jobs:
            dotnet pack src/ElBruno.QwenTTS.Realtime/ElBruno.QwenTTS.Realtime.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
            dotnet pack src/ElBruno.VibeVoiceTTS.Realtime/ElBruno.VibeVoiceTTS.Realtime.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
            dotnet pack src/ElBruno.KokoroTTS.Realtime/ElBruno.KokoroTTS.Realtime.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
+           dotnet pack src/ElBruno.Realtime.BlazorComponents/ElBruno.Realtime.BlazorComponents.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
 
       - name: NuGet login (OIDC → temp API key)
         uses: NuGet/login@v1

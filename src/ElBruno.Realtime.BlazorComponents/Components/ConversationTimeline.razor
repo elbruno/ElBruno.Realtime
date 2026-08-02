@@ -1,0 +1,54 @@
+@namespace ElBruno.Realtime.BlazorComponents
+@using ElBruno.Realtime
+
+<div class="realtime-conversation-timeline @CssClass" style="max-height: @(MaxHeightPx)px; overflow-y: auto;">
+    @if (Turns is not null && Turns.Count > 0)
+    {
+        @foreach (var turn in GetDisplayTurns())
+        {
+            <div class="realtime-turn">
+                <div class="realtime-turn-user">
+                    <span class="realtime-turn-label realtime-turn-label--user">You</span>
+                    <span class="realtime-turn-text">@turn.UserText</span>
+                </div>
+                <div class="realtime-turn-assistant">
+                    <span class="realtime-turn-label realtime-turn-label--assistant">Assistant</span>
+                    <span class="realtime-turn-text">@turn.ResponseText</span>
+                    @if (ShowAudioPlayback && turn.ResponseAudio is not null)
+                    {
+                        <span class="realtime-turn-audio-badge">🔊 Audio available</span>
+                    }
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="realtime-timeline-empty">
+            <span>No conversation yet. Start speaking to begin.</span>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>The list of conversation turns to display.</summary>
+    [Parameter] public IList<ConversationTurn>? Turns { get; set; }
+
+    /// <summary>Maximum number of turns to show (most recent). Default: 100.</summary>
+    [Parameter] public int MaxTurns { get; set; } = 100;
+
+    /// <summary>Whether to show an audio playback indicator when audio is available. Default: true.</summary>
+    [Parameter] public bool ShowAudioPlayback { get; set; } = true;
+
+    /// <summary>Maximum height in pixels before the timeline scrolls. Default: 400.</summary>
+    [Parameter] public int MaxHeightPx { get; set; } = 400;
+
+    /// <summary>Additional CSS class to apply to the container.</summary>
+    [Parameter] public string? CssClass { get; set; }
+
+    private IEnumerable<ConversationTurn> GetDisplayTurns()
+    {
+        if (Turns is null) return Enumerable.Empty<ConversationTurn>();
+        return Turns.TakeLast(MaxTurns);
+    }
+}
