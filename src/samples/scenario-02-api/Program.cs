@@ -4,6 +4,7 @@ using ElBruno.Realtime.Whisper;
 using ElBruno.Realtime.SileroVad;
 using ElBruno.QwenTTS.Pipeline;
 using Scenario07RealtimeApi;
+using RealtimeTextToSpeechClient = ElBruno.Realtime.ITextToSpeechClient;
 
 // ──────────────────────────────────────────────────────────────────
 // Scenario 07: Real-Time Conversation API with SignalR
@@ -30,7 +31,7 @@ builder.Services.AddPersonaPlexRealtime(opts =>
 
 // Register QwenTTS pipeline and adapter for ITextToSpeechClient
 builder.Services.AddQwenTts();
-builder.Services.AddSingleton<ITextToSpeechClient, QwenTextToSpeechClientAdapter>();
+builder.Services.AddSingleton<RealtimeTextToSpeechClient, QwenTextToSpeechClientAdapter>();
 
 // ── Register the LLM (Ollama) ───────────────────────────────────
 builder.Services.AddChatClient(new OllamaChatClient(
