@@ -46,12 +46,12 @@ This guide covers how to publish new versions of the **ElBruno.Realtime** packag
 
 1. **Update the version** in the packable projects under `src/` (for example `src/ElBruno.Realtime/ElBruno.Realtime.csproj`):
    ```xml
-   <Version>0.10.1</Version>
+   <Version>0.12.0</Version>
    ```
 2. **Commit and push** the version change, then merge it to `main`
 3. **Create a GitHub Release:**
    - Go to the repo → **Releases** → **Draft a new release**
-   - Create a new tag: `v0.10.1` (must match the version in the csproj)
+   - Create a new tag: `v0.12.0` (must match the version in the csproj)
    - Fill in the release title and notes
    - Click **Publish release**
 4. The **Publish to NuGet** workflow runs automatically
@@ -72,7 +72,7 @@ GitHub Release created from `main` (e.g. `v0.10.1`)
     → Packs all `ElBruno.Realtime*` and `*.Realtime` package artifacts
     → Requests an OIDC token from GitHub
     → Exchanges the token with NuGet.org for a temporary API key
-    → Pushes package to NuGet.org
+    → Pushes `ElBruno.Realtime` first, then its adapter and UI packages
     → Temp key expires automatically
 ```
 

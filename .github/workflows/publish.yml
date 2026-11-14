@@ -28,6 +28,7 @@ jobs:
           dotnet-version: |
             8.0.x
             10.0.x
+            11.0.x
 
       - name: Determine version
         id: version
@@ -68,10 +69,10 @@ jobs:
           dotnet pack src/ElBruno.Realtime/ElBruno.Realtime.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
           dotnet pack src/ElBruno.Realtime.Whisper/ElBruno.Realtime.Whisper.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
           dotnet pack src/ElBruno.Realtime.SileroVad/ElBruno.Realtime.SileroVad.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
-           dotnet pack src/ElBruno.QwenTTS.Realtime/ElBruno.QwenTTS.Realtime.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
-           dotnet pack src/ElBruno.VibeVoiceTTS.Realtime/ElBruno.VibeVoiceTTS.Realtime.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
-           dotnet pack src/ElBruno.KokoroTTS.Realtime/ElBruno.KokoroTTS.Realtime.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
-           dotnet pack src/ElBruno.Realtime.BlazorComponents/ElBruno.Realtime.BlazorComponents.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
+          dotnet pack src/ElBruno.QwenTTS.Realtime/ElBruno.QwenTTS.Realtime.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
+          dotnet pack src/ElBruno.VibeVoiceTTS.Realtime/ElBruno.VibeVoiceTTS.Realtime.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
+          dotnet pack src/ElBruno.KokoroTTS.Realtime/ElBruno.KokoroTTS.Realtime.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
+          dotnet pack src/ElBruno.Realtime.BlazorComponents/ElBruno.Realtime.BlazorComponents.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
 
       - name: NuGet login (OIDC → temp API key)
         uses: NuGet/login@v1
@@ -80,7 +81,24 @@ jobs:
           user: ${{ secrets.NUGET_USER }}
 
       - name: Push to NuGet.org
-        run: dotnet nuget push artifacts/*.nupkg --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          for package in \
+            ElBruno.Realtime \
+            ElBruno.Realtime.Whisper \
+            ElBruno.Realtime.SileroVad \
+            ElBruno.QwenTTS.Realtime \
+            ElBruno.VibeVoiceTTS.Realtime \
+            ElBruno.KokoroTTS.Realtime \
+            ElBruno.Realtime.BlazorComponents
+          do
+            dotnet nuget push "artifacts/${package}.${VERSION}.nupkg" \
+              --api-key "$NUGET_API_KEY" \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+          done
 
       - name: Upload nupkg artifact
         uses: actions/upload-artifact@v4
