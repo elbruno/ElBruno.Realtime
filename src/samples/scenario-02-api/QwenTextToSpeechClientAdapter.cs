@@ -1,5 +1,9 @@
 using ElBruno.QwenTTS.Pipeline;
-using ElBruno.Realtime;
+using RealtimeTextToSpeechClient = ElBruno.Realtime.ITextToSpeechClient;
+using RealtimeTextToSpeechOptions = ElBruno.Realtime.TextToSpeechOptions;
+using RealtimeTextToSpeechResponse = ElBruno.Realtime.TextToSpeechResponse;
+using RealtimeTextToSpeechResponseUpdate = ElBruno.Realtime.TextToSpeechResponseUpdate;
+using RealtimeTextToSpeechUpdateKind = ElBruno.Realtime.TextToSpeechUpdateKind;
 
 namespace Scenario07RealtimeApi;
 
@@ -7,7 +11,7 @@ namespace Scenario07RealtimeApi;
 /// Adapts <see cref="ITtsPipeline"/> (registered by <c>AddQwenTts()</c>) to
 /// the <see cref="ITextToSpeechClient"/> interface used by the Realtime pipeline.
 /// </summary>
-internal sealed class QwenTextToSpeechClientAdapter : ITextToSpeechClient
+internal sealed class QwenTextToSpeechClientAdapter : RealtimeTextToSpeechClient
 {
     private readonly ITtsPipeline _pipeline;
     private readonly string _defaultVoice;
@@ -23,9 +27,9 @@ internal sealed class QwenTextToSpeechClientAdapter : ITextToSpeechClient
         _defaultLanguage = defaultLanguage;
     }
 
-    public async Task<TextToSpeechResponse> GetSpeechAsync(
+    public async Task<RealtimeTextToSpeechResponse> GetSpeechAsync(
         string text,
-        TextToSpeechOptions? options = null,
+        RealtimeTextToSpeechOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(text);
@@ -40,7 +44,7 @@ internal sealed class QwenTextToSpeechClientAdapter : ITextToSpeechClient
 
             var audioData = await File.ReadAllBytesAsync(tempPath, cancellationToken);
 
-            return new TextToSpeechResponse
+            return new RealtimeTextToSpeechResponse
             {
                 AudioData = audioData,
                 AudioStream = new MemoryStream(audioData),
@@ -55,37 +59,37 @@ internal sealed class QwenTextToSpeechClientAdapter : ITextToSpeechClient
         }
     }
 
-    public async IAsyncEnumerable<TextToSpeechResponseUpdate> GetStreamingSpeechAsync(
+    public async IAsyncEnumerable<RealtimeTextToSpeechResponseUpdate> GetStreamingSpeechAsync(
         string text,
-        TextToSpeechOptions? options = null,
+        RealtimeTextToSpeechOptions? options = null,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        yield return new TextToSpeechResponseUpdate
+        yield return new RealtimeTextToSpeechResponseUpdate
         {
-            Kind = TextToSpeechUpdateKind.SessionOpen,
+            Kind = RealtimeTextToSpeechUpdateKind.SessionOpen,
         };
 
         var response = await GetSpeechAsync(text, options, cancellationToken);
 
         if (response.AudioData is { Length: > 0 })
         {
-            yield return new TextToSpeechResponseUpdate
+            yield return new RealtimeTextToSpeechResponseUpdate
             {
-                Kind = TextToSpeechUpdateKind.AudioChunk,
+                Kind = RealtimeTextToSpeechUpdateKind.AudioChunk,
                 AudioData = response.AudioData,
                 SampleRate = response.SampleRate,
             };
         }
 
-        yield return new TextToSpeechResponseUpdate
+        yield return new RealtimeTextToSpeechResponseUpdate
         {
-            Kind = TextToSpeechUpdateKind.SessionClose,
+            Kind = RealtimeTextToSpeechUpdateKind.SessionClose,
         };
     }
 
     public object? GetService(Type serviceType, object? serviceKey = null)
     {
-        if (serviceType == typeof(QwenTextToSpeechClientAdapter) || serviceType == typeof(ITextToSpeechClient))
+        if (serviceType == typeof(QwenTextToSpeechClientAdapter) || serviceType == typeof(RealtimeTextToSpeechClient))
             return this;
         return null;
     }
