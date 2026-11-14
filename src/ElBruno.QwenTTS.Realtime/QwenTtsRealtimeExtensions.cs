@@ -1,6 +1,7 @@
 using ElBruno.QwenTTS.Pipeline;
-using ElBruno.Realtime;
 using Microsoft.Extensions.DependencyInjection;
+using RealtimeBuilder = ElBruno.Realtime.RealtimeBuilder;
+using RealtimeTextToSpeechClient = ElBruno.Realtime.ITextToSpeechClient;
 
 namespace ElBruno.QwenTTS.Realtime;
 
@@ -37,7 +38,7 @@ public static class QwenTtsRealtimeExtensions
         {
             builder.Services.AddQwenTts();
         }
-        builder.Services.AddSingleton<ITextToSpeechClient, QwenTextToSpeechClientAdapter>();
+        builder.Services.AddSingleton<RealtimeTextToSpeechClient, QwenTextToSpeechClientAdapter>();
         return builder;
     }
 
@@ -68,7 +69,7 @@ public static class QwenTtsRealtimeExtensions
         {
             services.AddQwenTts();
         }
-        services.AddSingleton<ITextToSpeechClient, QwenTextToSpeechClientAdapter>();
+        services.AddSingleton<RealtimeTextToSpeechClient, QwenTextToSpeechClientAdapter>();
         return services;
     }
 }

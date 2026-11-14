@@ -13,6 +13,7 @@ A pluggable **real-time audio conversation framework** for .NET, following [Micr
 
 | Version | Feature |
 |---------|---------|
+| 0.12.0 | **.NET 11 support** — libraries target .NET 8, .NET 10, and .NET 11 |
 | 0.11.0 | **BlazorComponents** — `ElBruno.Realtime.BlazorComponents` RCL with 5 ready-to-use Razor components (`ConversationTimeline`, `RealtimeSessionPanel`, `AudioLevelMeter`, `SessionControls`, `LatencyMonitor`) |
 | 0.10.0 | **Per-session conversation isolation** — `IConversationSessionStore` prevents history leakage in multi-user (SignalR / API) scenarios |
 | 0.10.0 | **Thread-safe SileroVAD** — activated `_inferenceLock` for concurrent callers on the ONNX inference session |
@@ -59,7 +60,7 @@ All models download automatically on first use. The LLM is pluggable via `IChatC
 - **Auto Model Download** — Models download from HuggingFace/Whisper.net on first use
 - **DI-Ready** — One-line setup with `AddPersonaPlexRealtime()` + fluent builder
 - **Streaming** — Full async streaming via `IAsyncEnumerable` for real-time processing
-- **Multi-Target** — Supports .NET 8.0 and .NET 10.0
+- **Multi-Target** — Supports .NET 8.0, .NET 10.0, and .NET 11.0
 
 ---
 
