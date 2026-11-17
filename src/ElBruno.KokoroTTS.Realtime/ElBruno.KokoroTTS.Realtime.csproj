@@ -24,7 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="KokoroSharp.CPU" Version="0.6.4" />
+    <PackageReference Include="KokoroSharp.CPU" Version="0.8.4" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.*" />
   </ItemGroup>
 
