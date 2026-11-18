@@ -15,8 +15,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="ElBruno.QwenTTS" Version="1.10.1" />
-    <PackageReference Include="Microsoft.Extensions.AI" Version="9.5.0" />
+    <PackageReference Include="ElBruno.QwenTTS" Version="1.11.0" />
+    <PackageReference Include="Microsoft.Extensions.AI" Version="11.0.0" />
     <PackageReference Include="Microsoft.Extensions.AI.Ollama" Version="9.7.0-preview.1.25356.2" />
   </ItemGroup>
 

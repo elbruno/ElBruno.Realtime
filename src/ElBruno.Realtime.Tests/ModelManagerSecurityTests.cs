@@ -57,14 +57,14 @@ public class ModelManagerSecurityTests
         var cacheDir = Path.Combine(Path.GetTempPath(), "subdir", "..", "whisper-test-" + Guid.NewGuid());
         try
         {
-            Directory.CreateDirectory(cacheDir);
+            SeedWhisperModel(cacheDir);
             
-            // This succeeds - no ArgumentException thrown
             var path = await WhisperModelManager.EnsureModelAsync(
                 modelId: "whisper-tiny.en",
                 cacheDir: cacheDir);
             
-            Assert.NotNull(path);
+            Assert.Equal(Path.GetFullPath(Path.Combine(cacheDir, "ggml-tiny.en.bin")), path);
+            Assert.True(File.Exists(path));
         }
         finally
         {
@@ -83,12 +83,12 @@ public class ModelManagerSecurityTests
         var cacheDir = Path.Combine(Path.GetTempPath(), "subdir", "..", "silero-test-" + Guid.NewGuid());
         try
         {
-            Directory.CreateDirectory(cacheDir);
+            SeedSileroModel(cacheDir);
             
-            // This succeeds - no ArgumentException thrown
             var path = await SileroModelManager.EnsureModelAsync(cacheDir: cacheDir);
             
-            Assert.NotNull(path);
+            Assert.Equal(Path.GetFullPath(Path.Combine(cacheDir, "silero_vad.onnx")), path);
+            Assert.True(File.Exists(path));
         }
         finally
         {
@@ -108,14 +108,14 @@ public class ModelManagerSecurityTests
         var tempDir = Path.Combine(Path.GetTempPath(), "test-whisper-cache-" + Guid.NewGuid());
         try
         {
-            Directory.CreateDirectory(tempDir);
+            SeedWhisperModel(tempDir);
             
             var path = await WhisperModelManager.EnsureModelAsync(
                 modelId: "whisper-tiny.en",
                 cacheDir: tempDir);
             
-            Assert.NotNull(path);
-            Assert.StartsWith(tempDir, path);
+            Assert.Equal(Path.GetFullPath(Path.Combine(tempDir, "ggml-tiny.en.bin")), path);
+            Assert.True(File.Exists(path));
         }
         finally
         {
@@ -133,12 +133,12 @@ public class ModelManagerSecurityTests
         var tempDir = Path.Combine(Path.GetTempPath(), "test-silero-cache-" + Guid.NewGuid());
         try
         {
-            Directory.CreateDirectory(tempDir);
+            SeedSileroModel(tempDir);
             
             var path = await SileroModelManager.EnsureModelAsync(cacheDir: tempDir);
             
-            Assert.NotNull(path);
-            Assert.StartsWith(tempDir, path);
+            Assert.Equal(Path.GetFullPath(Path.Combine(tempDir, "silero_vad.onnx")), path);
+            Assert.True(File.Exists(path));
         }
         finally
         {
@@ -148,5 +148,19 @@ public class ModelManagerSecurityTests
                 catch { /* Best effort cleanup */ }
             }
         }
+    }
+
+    private static void SeedWhisperModel(string cacheDir)
+    {
+        var targetDir = Path.GetFullPath(cacheDir);
+        Directory.CreateDirectory(targetDir);
+        File.WriteAllBytes(Path.Combine(targetDir, "ggml-tiny.en.bin"), [0]);
+    }
+
+    private static void SeedSileroModel(string cacheDir)
+    {
+        var targetDir = Path.GetFullPath(cacheDir);
+        Directory.CreateDirectory(targetDir);
+        File.WriteAllBytes(Path.Combine(targetDir, "silero_vad.onnx"), [0]);
     }
 }
